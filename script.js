@@ -134,7 +134,7 @@ async function fetchAssets() {
 // Step 1: Fetch assets from API endpoint
 console.log(`Fetching assets from ${BASE_URL}/assets...`);
 const assetsData = await fetchAssets();
-console.log(`Received assets for ${Object.keys(assetsData).length} folders`);
+console.log(`Received assets for ${Object.keys(assetsData).length} folders\n`);
 
 // Step 2: Get array of names from database to check for existing entries
 const names = new Set(await getNamesInDB());
@@ -145,7 +145,7 @@ for (const [folderName, filenames] of Object.entries(assetsData)) {
 
     // Check if folder already exists in database
     if (names.has(folderName)) {
-        console.log(`${folderName} already exists in database`);
+        console.log(`${folderName} already exists in database \n`);
         continue;
     }
 
@@ -193,16 +193,14 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
 
             try {
                 // Process PDF from URL: downloads, parses, and converts to JSON via OpenAI
-                let jsonData = await processPdfFromUrl(pdfUrl, matchedKeyword);
+                let jsonData = await processPdfFromUrl(pdfUrl, matchedKeyword, folderName);
 
-                console.log(`raw pdf to json : ${pdfUrl} : `, jsonData);
+                //! console.log(`raw pdf to json : ${pdfUrl} : `, jsonData);
 
                 // Sanitize + canonicalize per-file AND for merge.
                 // Note: sanitizeUnifiedJson drops top-level `source`, but merge needs it for priority logic.
 
                 // console.log("RAW volume_resistivity:", JSON.stringify(jsonData?.electrical?.volume_resistivity, null, 2));
-
-
 
                 let sanitizedSingle = sanitizeUnifiedJson(jsonData);
                 sanitizedSingle = canonicalizeUnitsByFieldPath(sanitizedSingle, { strict: false });
@@ -213,7 +211,6 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                 }
 
                 // console.log(`-------sanitizedSingle (pdf)-------------: \n`, sanitizedSingle);
-
                 // console.log("SANITIZED volume_resistivity:", JSON.stringify(sanitizedSingle?.electrical?.volume_resistivity, null, 2));
 
                 if (PER_FILE_MODE) {
@@ -225,7 +222,7 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                         }
                     }
                     const outPath = await saveSanitizedJson(PER_FILE_OUTPUT_DIR, folderName, fileName, sanitizedSingle);
-                    console.log(`Saved per-file sanitized JSON -> ${outPath}`);
+                    console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
                 }
 
                 formedJsons.push(sanitizedSingle);
@@ -249,12 +246,12 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
 
             try {
                 // Process JSON from URL: downloads, then transforms via OpenAI API
-                const transformedJson = await processJsonFromUrl(jsonUrl, SPECIALCHEM_KEYWORD);
+                const transformedJson = await processJsonFromUrl(jsonUrl, SPECIALCHEM_KEYWORD, folderName);
 
                 // Sanitize + canonicalize per-file AND for merge.
                 // Note: sanitizeUnifiedJson drops top-level `source`, but merge needs it for priority logic.
 
-                console.log(`raw transformed json : ${jsonUrl} : `, transformedJson);
+                //! console.log(`raw transformed json : ${jsonUrl} : `, transformedJson);
 
                 // console.log("RAW volume_resistivity:", JSON.stringify(transformedJson?.electrical?.volume_resistivity, null, 2));
 
@@ -280,7 +277,7 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                         }
                     }
                     const outPath = await saveSanitizedJson(PER_FILE_OUTPUT_DIR, folderName, fileName, sanitizedSingle);
-                    console.log(`Saved per-file sanitized JSON -> ${outPath}`);
+                    console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
                 }
 
                 formedJsons.push(sanitizedSingle);
@@ -323,7 +320,7 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
     if (PER_FILE_MODE) {
         // const finalPath = await saveJsonInFolder(PER_FILE_OUTPUT_DIR, folderName, "final.json", sanitizedJson);
         const finalPath = await saveJsonInFolder(PER_FILE_OUTPUT_DIR, folderName, "final.json", finalJson);
-        console.log(`Saved unified final JSON -> ${finalPath}`);
+        console.log(`Saved unified final JSON -> ${finalPath} \n`);
     }
 
     const flag = await createDataInDB(finalJson, folderName, folderName);

@@ -1,0 +1,100 @@
+SECTION=General | FIELD=Name | VALUE=K225-KS
+SECTION=General | FIELD=Description | VALUE=Flame Retardant (halogen free), Heat Stabilized
+SECTION=General | FIELD=Availability | VALUE=Africa & Middle East; Asia Pacific; Europe; Latin America; North America
+SECTION=General | FIELD=Product Product Product Product Product Product Product Comparison Comparison Comparison Comparison Comparison Comparison Comparison | VALUE=Akulon® Akulon® Akulon® Akulon® Akulon® Akulon® Akulon® K225-KS
+SECTION=General | FIELD=Thermal Mechanical Physical Mechanical Impact Thermal | VALUE=K225-KS K225-KS K225-KS K225-KS K225-KS K225-KS (Dry) (Dry) (Dry) (Dry) (Dry) (Dry) (Dry)
+SECTION=General | FIELD=Processing Method | VALUE=Injection Molding
+SECTION=General | FIELD=Charpy Deflection Taber Molding Tensile Abrasion Strength Notched Shrinkage Temperature Resistance Impact Under Strength Load | VALUE=Isothermal Stress vs. Strain
+SECTION=General | FIELD=Deformation -- Flow Yield 0.45 MPa, Under Unannealed Load | VALUE=(ISO 11403)
+SECTION=General | FIELD=Wear Yield -30°C Across 0.45 Factor MPa, Flow Unannealed | VALUE=Shear Modulus 80.0 180 3.0
+SECTION=General | FIELD=Break 23°C -- 1.8 MPa, Unannealed | VALUE=11403) 5.0
+SECTION=General | FIELD=Films Charpy Break Across 1.8 MPa, Unnotched Flow Unannealed Impact Strength | VALUE=K225-KS 0.91 75.0
+SECTION=General | FIELD=-- Flow -- 8.0 MPa, Unannealed | VALUE=Specific Volume 1.1
+SECTION=General | FIELD=Continuous Film -30°C -- Thickness Use - Temperature Tested | VALUE=90
+SECTION=General | FIELD=Dimensional Change | VALUE=Viscosity vs. Shear
+SECTION=General | FIELD=Glass Tensile Secant 23°C Transition Elongation Modulus Temperature | VALUE=11403) 95 kJ/m2
+SECTION=General | FIELD=Notched Vicat Resin MD Yield Softening ID Izod Impact Temperature | VALUE=PA6 FR(30)
+SECTION=General | FIELD=-- -- TD Yield | VALUE=3.5
+SECTION=General | FIELD=-- Break -- -- | VALUE=Akulon® 204
+SECTION=General | FIELD=Physical Notched Tensile Manufacturer Saturation Break -- Strength Izod / Impact Supplier (Area) | VALUE=Envalior K225-KS
+SECTION=General | FIELD=Saturation, 23°C | VALUE=(Dry) 9.0
+SECTION=General | FIELD=Nominal Unnotched Ball Generic MD Pressure : Yield Symbol Tensile Izod Test Impact Strain (210°C) at Break | VALUE=Nylon 6 Pass
+SECTION=General | FIELD=Melting Material -- Yield -- Temperature Status | VALUE=Commercial: Active 6.0
+SECTION=General | FIELD=-- Equilibrium, 23°C, 50% RH | VALUE=2.5
+SECTION=General | FIELD=-- 90°C -- MD : Break | VALUE=Processing (English) >
+SECTION=General | FIELD=K-Value -- | VALUE=Technical Datasheet 1.18
+SECTION=General | FIELD=Flexural Multi-Axial -- TD : Break Modulus Instrumented Impact Energy | VALUE=--
+SECTION=General | FIELD=Viscosity Literature -- Number 1 | VALUE=White Paper -
+SECTION=General | FIELD=Multi-Axial -- -- Break 4 Instrumented Impact Peak | VALUE=Performance 220 Plastics
+SECTION=General | FIELD=Relative Apparent Viscosity (Bulk) Density | VALUE=Automotive Actuator
+SECTION=General | FIELD=Tensile -- -- Elongation | VALUE=3400
+SECTION=General | FIELD=Hardness Flexural Yield -- Strength | VALUE=K225-KS Akulon®
+SECTION=General | FIELD=Mechanical UL -- -- MD -- Yellow : Break Card 2 | VALUE=K225-KS (Dry)
+SECTION=General | FIELD=Rockwell CLTE -- TD : Break Hardness | VALUE=115
+SECTION=General | FIELD=-- Yield Break | VALUE=Akulon®
+SECTION=General | FIELD=Flow -- 230°C/2.16 kg | VALUE=--
+SECTION=General | FIELD=Elmendorf -- Break Tear Strength | VALUE=Africa & Middle
+SECTION=General | FIELD=Melt -- Volume-Flow Rate (MVR) | VALUE=Asia Pacific 3800
+SECTION=General | FIELD=Compressive Durometer Trouser Flow Tear Hardness Resistance Modulus | VALUE=--
+SECTION=General | FIELD=Availability 250°C/2.16 kg | VALUE=Europe 35
+SECTION=General | FIELD=Compressive Carbon -- Dioxide Strength Transmission Rate | VALUE=Latin America
+SECTION=General | FIELD=275°C/5.0 Flow kg | VALUE=9.0E-5
+SECTION=General | FIELD=Nitrogen -- -- Transmission Rate | VALUE=North America
+SECTION=General | FIELD=Spiral Shore Oxygen Additive -- Flow Hardness Permeability | VALUE=Heat Stabilizer
+SECTION=General | FIELD=Transverse | VALUE=9.0E-5
+SECTION=General | FIELD=Shear Ball Oxygen Indentation Strength Transmission Hardness Rate | VALUE=Flame Retardant
+SECTION=General | FIELD=Specific Features Heat | VALUE=Halogen Free
+SECTION=General | FIELD=Poisson's Water Vapor Ratio Transmission Rate | VALUE=--
+SECTION=General | FIELD=Coefficient Water Vapor of Transmission Friction Rate | VALUE=--
+SECTION=General | FIELD=The The The The The The The information information information information information information information presented presented presented presented presented presented presented here here here here here here here was was was was was was was | VALUE=producer producer producer producer producer producer producer of of of of of of of the the the the the the the product product product product product product product or or or or or or or material material material material material material material or or or or or or or original original original original original original original information information information information information information information
+SECTION=Physical | PROPERTY=Density / Specific Gravity | CONDITION= | VALUE=1.18 | UNIT=g/cm3 | TEST_METHOD=ISO 1183
+SECTION=Physical | PROPERTY=Melt Volume-Flow Rate (MVR) | CONDITION=250°C/2.16 kg | VALUE=35 | UNIT=cm3/10min | TEST_METHOD=ISO 1133
+SECTION=Physical | PROPERTY=Molding Shrinkage | CONDITION=Across Flow | VALUE=0.91 | UNIT=% | TEST_METHOD=ISO 294-4
+SECTION=Physical | PROPERTY=Molding Shrinkage | CONDITION=Flow | VALUE=1.1 | UNIT=% | TEST_METHOD=ISO 294-4; ASTM D1042; ISO 2796
+SECTION=Physical | PROPERTY=Saturation | CONDITION=Saturation, 23°C | VALUE=9.0 | UNIT=% | TEST_METHOD=ISO 62
+SECTION=Physical | PROPERTY=Equilibrium | CONDITION=Equilibrium, 23°C, 50% RH | VALUE=2.5 | UNIT=% | TEST_METHOD=ISO 62
+SECTION=Mechanical | PROPERTY=Tensile Modulus | CONDITION= | VALUE=3800 | UNIT=MPa | TEST_METHOD=ISO 527-1
+SECTION=Mechanical | PROPERTY=Tensile Strength | CONDITION=Yield | VALUE=80.0 | UNIT=MPa | TEST_METHOD=ISO 527-2
+SECTION=Mechanical | PROPERTY=Tensile Elongation | CONDITION=Yield | VALUE=3.5 | UNIT=% | TEST_METHOD=ISO 527-2
+SECTION=Mechanical | PROPERTY=Nominal Tensile Strain at Break | CONDITION= | VALUE=6.0 | UNIT=% | TEST_METHOD=ISO 527-2
+SECTION=Mechanical | PROPERTY=Nominal Tensile Strain at Break | CONDITION=90°C | VALUE=> 50 | UNIT=% | TEST_METHOD=ISO 527-2
+SECTION=Mechanical | PROPERTY=Flexural Modulus | CONDITION= | VALUE=3400 | UNIT=MPa | TEST_METHOD=ISO 178
+SECTION=Mechanical | PROPERTY=Flexural Strength | CONDITION= | VALUE=115 | UNIT=MPa | TEST_METHOD=ISO 178
+SECTION=Impact | PROPERTY=Charpy Notched Impact Strength | CONDITION=-30°C | VALUE=3.0 | UNIT=kJ/m2 | TEST_METHOD=ISO 179/1eA
+SECTION=Impact | PROPERTY=Charpy Notched Impact Strength | CONDITION=23°C | VALUE=5.0 | UNIT=kJ/m2 | TEST_METHOD=ISO 179/1eA
+SECTION=Impact | PROPERTY=Charpy Unnotched Impact Strength | CONDITION=-30°C | VALUE=90 | UNIT=kJ/m2 | TEST_METHOD=ISO 179/1eU
+SECTION=Impact | PROPERTY=Charpy Unnotched Impact Strength | CONDITION=23°C | VALUE=95 kJ/m2 | UNIT= | TEST_METHOD=ISO 179/1eU
+SECTION=Thermal | PROPERTY=Deflection Temperature Under Load | CONDITION=0.45 MPa, Unannealed | VALUE=180 | UNIT=°C | TEST_METHOD=ISO 75-2/B
+SECTION=Thermal | PROPERTY=Deflection Temperature Under Load | CONDITION=1.8 MPa, Unannealed | VALUE=75.0 | UNIT=°C | TEST_METHOD=ISO 75-2/A
+SECTION=Thermal | PROPERTY=Vicat Softening Temperature | CONDITION= | VALUE=204 | UNIT=°C | TEST_METHOD=ISO 306/B50
+SECTION=Thermal | FIELD=Ball Pressure Test | VALUE=Pass
+SECTION=Thermal | PROPERTY=Melting Temperature | CONDITION=-- 4 | VALUE=220 | UNIT=°C | TEST_METHOD=ISO 11357-3
+SECTION=Thermal | PROPERTY=CLTE | CONDITION=Flow | VALUE=9.0E-5 | UNIT=cm/cm/°C | TEST_METHOD=ISO 11359-2
+SECTION=Thermal | PROPERTY=CLTE | CONDITION=Transverse | VALUE=9.0E-5 | UNIT=cm/cm/°C | TEST_METHOD=ISO 11359-2
+SECTION=Thermal | PROPERTY=RTI Elec | CONDITION=0.75 mm | VALUE=150 | UNIT=°C | TEST_METHOD=UL 746B
+SECTION=Thermal | PROPERTY=RTI Imp | CONDITION=0.75 mm | VALUE=75.0 | UNIT=°C | TEST_METHOD=UL 746B
+SECTION=Thermal | PROPERTY=RTI Imp | CONDITION=3.0 mm | VALUE=80.0 | UNIT=°C | TEST_METHOD=UL 746B
+SECTION=Thermal | PROPERTY=RTI Str | CONDITION=0.75 mm | VALUE=95.0 | UNIT=°C | TEST_METHOD=UL 746B
+SECTION=Thermal | PROPERTY=RTI Str | CONDITION=3.0 mm | VALUE=95.0 | UNIT=°C | TEST_METHOD=UL 746B
+SECTION=Thermal | PROPERTY=Effective Thermal Diffusivity | CONDITION= | VALUE=1.22E-7 | UNIT=m2/s | TEST_METHOD=UL 746B
+SECTION=Electrical | PROPERTY=Volume Resistivity | CONDITION= | VALUE=> 1.0E+13 | UNIT=ohms·m | TEST_METHOD=IEC 62631-3-1
+SECTION=Electrical | PROPERTY=Dielectric Strength | CONDITION= | VALUE=30 | UNIT=kV/mm | TEST_METHOD=IEC 60243-1
+SECTION=Electrical | PROPERTY=Dielectric Constant | CONDITION=100 Hz | VALUE=3.30 | UNIT= | TEST_METHOD=IEC 62631-2-1
+SECTION=Electrical | PROPERTY=Dielectric Constant | CONDITION=1 MHz | VALUE=3.20 | UNIT= | TEST_METHOD=IEC 62631-2-1
+SECTION=Electrical | PROPERTY=Dissipation Factor | CONDITION=100 Hz | VALUE=9.0E-3 | UNIT= | TEST_METHOD=IEC 62631-2-1
+SECTION=Electrical | PROPERTY=Dissipation Factor | CONDITION=1 MHz | VALUE=0.020 | UNIT= | TEST_METHOD=IEC 62631-2-1
+SECTION=Electrical | PROPERTY=Comparative Tracking Index | CONDITION= | VALUE=600 | UNIT=V | TEST_METHOD=IEC 60112
+SECTION=Flammability | PROPERTY=Flame Rating | CONDITION=1.5 mm | VALUE=V-0 | UNIT= | TEST_METHOD=ISO 3795; IEC 60695-11-10, -20; UL 94
+SECTION=Flammability | PROPERTY=Flame Rating | CONDITION=3.0 mm | VALUE=V-0 | UNIT= | TEST_METHOD=ISO 3795; IEC 60695-11-10, -20; UL 94
+SECTION=Flammability | PROPERTY=Flame Rating | CONDITION=0.40 mm | VALUE=V-0 | UNIT= | TEST_METHOD=IEC 60695-11-10, -20
+SECTION=Flammability | PROPERTY=Flame Rating | CONDITION=0.75 mm | VALUE=V-0 | UNIT= | TEST_METHOD=IEC 60695-11-10, -20
+SECTION=Flammability | PROPERTY=Glow Wire Flammability Index | CONDITION=0.38 mm | VALUE=960 | UNIT=°C | TEST_METHOD=IEC 60695-2-12
+SECTION=Flammability | PROPERTY=Glow Wire Flammability Index | CONDITION=1.5 mm | VALUE=960 | UNIT=°C | TEST_METHOD=IEC 60695-2-12
+SECTION=Flammability | PROPERTY=Glow Wire Ignition Temperature | CONDITION=0.38 mm | VALUE=960 | UNIT=°C | TEST_METHOD=IEC 60695-2-13
+SECTION=Flammability | PROPERTY=Glow Wire Ignition Temperature | CONDITION=1.5 mm | VALUE=960 | UNIT=°C | TEST_METHOD=IEC 60695-2-13
+SECTION=Flammability | PROPERTY=Oxygen Index | CONDITION= | VALUE=40 | UNIT=% | TEST_METHOD=ISO 4589-2
+SECTION=Fill Analysis | PROPERTY=Melt Density | CONDITION= | VALUE=0.898 | UNIT=g/cm3 | TEST_METHOD=
+SECTION=Fill Analysis | PROPERTY=Melt Specific Heat | CONDITION= | VALUE=2530 | UNIT=J/kg/°C | TEST_METHOD=ASTM D3835
+SECTION=Fill Analysis | PROPERTY=Melt Thermal Conductivity | CONDITION= | VALUE=0.28 | UNIT=W/m/K | TEST_METHOD=ASTM E1461
+SECTION=Injection | FIELD=This data represents | VALUE=values that
+SECTION=Extrusion | FIELD=This data represents | VALUE=values that

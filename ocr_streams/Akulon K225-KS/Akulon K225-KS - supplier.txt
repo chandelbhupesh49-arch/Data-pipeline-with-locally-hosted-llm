@@ -1,0 +1,114 @@
+# Property Data
+
+# Akulon® K225–KS
+
+## PA6 FR(30)
+
+Flame Retardant (halogen free), Heat Stabilized
+
+Print Date: 2025–10–04
+
+| PROPERTIES    | TYPICAL DATA | UNIT  | TEST METHOD |
+|---|---|---|---|
+| **RHEOLOGICAL PROPERTIES**    | **DRY / COND** |    |    |
+| Molding shrinkage (parallel)    | 1.1 / *    | %    | ISO 294–4   |
+| Molding shrinkage (normal)    | 0.91 / *    | %    | ISO 294–4   |
+
+| **MECHANICAL PROPERTIES**    | **DRY / COND** |    |    |
+| Tensile modulus    | 3800 / 1400  | MPa  | ISO 527–1/–2 |
+| Nominal strain at break    | 6 / >50    | %    | ISO 527–1/–2 |
+| Yield stress    | 80 / 40    | MPa  | ISO 527–1/–2 |
+| Yield strain    | 3.5 / 22    | %    | ISO 527–1/–2 |
+| Flexural modulus    | 3400 / 1300  | MPa  | ISO 178    |
+| Flexural strength    | 115 / 40    | MPa  | ISO 178    |
+| Charpy impact strength (+23°C)    | 95 / N    | kJ/m² | ISO 179/1eU |
+| Charpy impact strength (–30°C)    | 90 / 85    | kJ/m² | ISO 179/1eU |
+| Charpy notched impact strength (+23°C) | 5 / 12    | kJ/m² | ISO 179/1eA |
+| Charpy notched impact strength (–30°C) | 3 / 3    | kJ/m² | ISO 179/1eA |
+
+| **THERMAL PROPERTIES**    | **DRY / COND** |    |    |
+| Melting temperature (10°C/min)    | 220 / *    | °C   | ISO 11357–1/–3 |
+| Temp. of deflection under load (1.80 MPa) | 75 / *    | °C   | ISO 75–1/–2  |
+| Temp. of deflection under load (0.45 MPa) | 180 / *    | °C   | ISO 75–1/–2  |
+| Coeff. of linear therm. expansion (parallel) | 0.9 / *    | E–4/°C | ISO 11359–1/–2 |
+| Coeff. of linear therm. expansion (normal) | 0.9 / *    | E–4/°C | ISO 11359–1/–2 |
+| Burning Behav. at 1.5 mm nom. thickn. | V–0 / *    | class | IEC 60695–11–10 |
+| Thickness tested    | 1.5 / *    | mm   | IEC 60695–11–10 |
+
+---
+
+Seller represents and warrants exclusively that on the date of delivery by Seller the product shall be in conformity with the specifications agreed upon. Seller makes no other representations or warranties, whether express or implied.
+
+Seller is not responsible or liable for the design of the products of the Customer and it is the responsibility of the Customer to determine that the Seller’s product is safe, complies with application laws and regulations, and is technically or otherwise fit for its intended use. Seller does not endorse or claim suitability of its products for a specific application and disclaims each and every representation or warranty, whether express or implied, in that respect.
+
+Typical values are indicative only and are not to be construed as being binding specifications. Colorants in the product or other additives may cause significant variations in typical values.
+
+Copyright © Envalior 2025. All rights reserved. No part of the information may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of Envalior.
+
+# Property Data
+
+## Akulon® K225—KS
+
+Print Date: 2025-10-04
+
+| PROPERTIES    | TYPICAL DATA | UNIT  | TEST METHOD    |
+|---|---|---|---|
+| Burning Behav. at 3.0 mm nom. thickn.    | V–0 / *    | class | IEC 60695-11-10    |
+| Thickness tested    | 3 / *    | mm    | IEC 60695-11-10    |
+| Burning Behav. at 0.4 mm nom. thickn.    | V–0 / *    | class | IEC 60695-11-10    |
+| Thickness tested    | 0.4 / *    | mm    | IEC 60695-11-10    |
+| Burning Behav. at 0.75 mm nom. thickn.    | V–0 / *    | class | IEC 60695-11-10    |
+| Thickness tested    | 075 / *    | mm    | IEC 60695-11-10    |
+| Oxygen index    | 40 / *    | %    | ISO 4589-1/–2    |
+| Glow Wire Flammability Index GWFI    | 960 / –    | °C    | IEC 60695-2-12    |
+| GWFI (Thickness (1) tested)    | 0.38 / –    | mm    | IEC 60695-2-12    |
+| Glow Wire Flammability Index GWFI    | 960 / –    | °C    | IEC 60695-2-12    |
+│ GWFI (Thickness (2) tested)    | 1.5 / –    | mm    | IEC 60695-2-12    |
+| Glow Wire Ignition Temperature GWIT    | 960 / –    | °C    | IEC 60695-2-13    |
+| GWIT (Thickness (1) tested)    | 0.38 / –    | mm    | IEC 60695-2-13    |
+| Glow Wire Ignition Temperature GWIT    | 960 / –    | °C    | IEC 60695-2-13    |
+|    | 1.5 / –    | mm    | IEC 60695-2-13    |
+
+| ELECTRICAL PROPERTIES    | DRY / COND    |
+|---|---|
+| Relative permittivity (100Hz)    | 3.3 / 8    | –    | IEC 62631-2-1    |
+| Relative permittivity (1 MHz)    | 3.2 / 3.6    | –    | IEC 62631-2-1    |
+| Dissipation factor (100 Hz)    | 90 / 1250    | E–4    | IEC 62631-2-1    |
+| Dissipation factor (1 MHz)    | 200 / 800    | E–4    | IEC 62631-2-1    |
+| Volume resistivity    | >1E13 / 1E11    | Ohm*m  | IEC 62631-3-1    |
+| Surface resistivity    | – / 1E14    | Ohm    | IEC 62631-3-2    |
+| Electric strength    | 30 / 25    | kV/mm  | IEC 60243-1    |
+| Comparative tracking index    | 600 / 600    | V    | IEC 60112    |
+
+| OTHER PROPERTIES    | DRY / COND    |
+|---|---|
+| Water absorption    | 9 / *    | %    | Sim. to ISO 62    |
+| Humidity absorption    | 2.5 / *    | %    | Sim. to ISO 62    |
+
+---
+
+Seller represents and warrants exclusively that on the date of delivery by Seller the product shall be in conformity with the specifications agreed upon. Seller makes no other representations or warranties, whether express or implied.
+
+Seller is not responsible or liable for the design of the products of the Customer and it is the responsibility of the Customer to determine that the Seller’s product is safe, complies with application laws and regulations, and is technically or otherwise fit for its intended use. Seller does not endorse or claim suitability of its products for a specific application and disclaims each and every representation or warranty, whether express or implied, in that respect.
+
+Typical values are indicative only and are not to be construed as being binding specifications. Colorants in the product or other additives may cause significant variations in typical values.
+
+Copyright © Enviro 2025. All rights reserved. No part of the information may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of Enviro.
+
+Property Data
+
+Akulon® K225–KS
+
+Print Date: 2025-10-04
+
+| PROPERTIES | TYPICAL DATA | UNIT | TEST METHOD |
+|---|---|---|---|
+| Density | 1180 / – | kg/m³ | ISO 1183 |
+
+Seller represents and warrants exclusively that on the date of delivery by Seller the product shall be in conformity with the specifications agreed upon. Seller makes no other representations or warranties, whether express or implied.
+
+Seller is not responsible or liable for the design of the products of the Customer and it is the responsibility of the Customer to determine that the Seller’s product is safe, complies with application laws and regulations, and is technically or otherwise fit for its intended use. Seller does not endorse or claim suitability of its products for a specific application and disclaims each and every representation or warranty, whether express or implied, in that respect.
+
+Typical values are indicative only and are not to be construed as being binding specifications. Colorants in the product or other additives may cause significant variations in typical values.
+
+Copyright © Envalior 2025. All rights reserved. No part of the information may be reproduced, distributed, or transmitted in any form or by any means, including photocopying, recording, or other electronic or mechanical methods, without the prior written permission of Envalior.

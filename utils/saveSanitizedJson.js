@@ -8,7 +8,7 @@ function safeName(name) {
 
 /**
  * Saves a sanitized JSON object to:
- *   <outputRoot>/<folderName>/<fileBase>.sanitized.json
+ *   <outputRoot>/<folderName>/<fileBase>.json
  */
 export async function saveSanitizedJson(outputRoot, folderName, originalFileName, jsonObj) {
   const folderSafe = safeName(folderName);
@@ -24,8 +24,6 @@ export async function saveSanitizedJson(outputRoot, folderName, originalFileName
   return outPath;
 }
 
-
-
 export async function saveJsonInFolder(outputRoot, folderName, outFileName, jsonObj) {
   const folderSafe = safeName(folderName);
   const outDir = path.resolve(outputRoot, folderSafe);
@@ -36,3 +34,25 @@ export async function saveJsonInFolder(outputRoot, folderName, outFileName, json
 
   return outPath;
 }
+
+/**
+ * Save raw LLM JSON per material & source to:
+ *   <outputRoot>/<materialName>/<materialName> - <source>.json
+ */
+export async function saveRawLlmJson(outputRoot, materialName, source, jsonObj) {
+  const materialSafe = safeName(materialName || "unknown_material");
+  const sourceLabel = source ? String(source) : "unknown_source";
+
+  const baseFileName = safeName(
+    materialName ? `${materialName} - ${sourceLabel}` : sourceLabel
+  );
+
+  const outDir = path.resolve(outputRoot, materialSafe);
+  await fs.mkdir(outDir, { recursive: true });
+
+  const outPath = path.join(outDir, `${baseFileName}.json`);
+  await fs.writeFile(outPath, JSON.stringify(jsonObj, null, 2), "utf8");
+
+  return outPath;
+}
+

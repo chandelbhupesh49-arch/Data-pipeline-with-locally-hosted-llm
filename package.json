@@ -5,7 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js",
+    "test2": "node test2.mjs",
+    "dev": "node script.js"
   },
   "keywords": [],
   "author": "",
@@ -14,10 +16,13 @@
     "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "dotenv": "^17.2.3",
+    "jsonrepair": "^3.13.2",
     "node-file-dialog": "^1.0.3",
     "openai": "^6.15.0",
     "pdf-parse": "^2.4.5",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "undici": "^7.22.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "prisma": "^7.2.0"
