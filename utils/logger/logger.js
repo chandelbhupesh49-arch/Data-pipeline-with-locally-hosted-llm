@@ -96,6 +96,4 @@ logger.add(
     })
 );
 
-logger.error("hello");
-
 export default logger;

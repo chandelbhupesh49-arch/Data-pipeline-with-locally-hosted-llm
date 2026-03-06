@@ -24,6 +24,7 @@
 
 import { prisma } from "./prisma.js";
 import crypto from "node:crypto";
+import logger from "./logger/logger.js";
 
 export async function createDataInDB(
     unifiedJson,
@@ -47,9 +48,12 @@ export async function createDataInDB(
             return true; // success
 
         } catch (err) {
-            console.error(
-                `Attempt ${attempt} failed for ${subFolderPath}:`,
-                err.message
+            // console.error(
+            //     `Attempt ${attempt} failed for ${subFolderPath}:`,
+            //     err.message
+            // );
+            logger.error(
+                `Attempt ${attempt} failed for ${subFolderPath}: ${err.message}`
             );
 
             // if last attempt, fail

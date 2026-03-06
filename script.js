@@ -10,6 +10,7 @@ import { sanitizeUnifiedJson, sanitizeGenericAndClassifyPolymer } from "./utils/
 import { saveSanitizedJson, saveJsonInFolder } from "./utils/saveSanitizedJson.js";
 import { canonicalizeUnitsByFieldPath, collectCanonicalUnitMismatches } from "./utils/unitNormalization.js";
 import { finalSchemaTransformation } from "./utils/finalSchema.js";
+import logger from "./utils/logger/logger.js";
 
 function setFolderName(obj, folderName) {
     if (!obj || typeof obj !== "object") return obj;
@@ -125,16 +126,19 @@ async function fetchAssets() {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error("Error fetching assets:", error);
+        // console.error("Error fetching assets:", error);
+        logger.error("Error fetching assets:", error?.message ?? error);
         throw error;
     }
 }
 
 // Main execution flow
 // Step 1: Fetch assets from API endpoint
-console.log(`Fetching assets from ${BASE_URL}/assets...`);
+// console.log(`Fetching assets from ${BASE_URL}/assets...`);
+logger.info(`Fetching assets from ${BASE_URL}/assets...`);
 const assetsData = await fetchAssets();
-console.log(`Received assets for ${Object.keys(assetsData).length} folders\n`);
+// console.log(`Received assets for ${Object.keys(assetsData).length} folders\n`);
+logger.info(`Received assets for ${Object.keys(assetsData).length} folders\n`);
 
 // Step 2: Get array of names from database to check for existing entries
 const names = new Set(await getNamesInDB());
@@ -145,7 +149,8 @@ for (const [folderName, filenames] of Object.entries(assetsData)) {
 
     // Check if folder already exists in database
     if (names.has(folderName)) {
-        console.log(`${folderName} already exists in database \n`);
+        // console.log(`${folderName} already exists in database \n`);
+        logger.info(`${folderName} already exists in database \n`);
         continue;
     }
 
@@ -169,7 +174,8 @@ await disconnect();
  * @param {Array} formedJsons - Array to collect processed JSON data
  */
 async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
-    console.log(`Processing folder: ${folderName} with ${filenames.length} files`);
+    // console.log(`Processing folder: ${folderName} with ${filenames.length} files`);
+    logger.info(`Processing folder: ${folderName} with ${filenames.length} files`);
 
     // Loop through all files in this folder
     for (const fileName of filenames) {
@@ -183,13 +189,15 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
             const matchedKeyword = getMatchedKeyword(fileName, PDF_NAME_KEYWORDS);
 
             if (!matchedKeyword) {
-                console.log(`Skipping PDF (no keyword matched): ${fileName}`);
+                // console.log(`Skipping PDF (no keyword matched): ${fileName}`);
+                logger.info(`Skipping PDF (no keyword matched): ${fileName}`);
                 continue;
             }
 
             // Construct PDF URL: ${base_url}/data/${folder_name}/${file_name}
             const pdfUrl = `${BASE_URL}/data/${folderName}/${fileName}`;
-            console.log(`Processing PDF: ${pdfUrl} (source: ${matchedKeyword})`);
+            // console.log(`Processing PDF: ${pdfUrl} (source: ${matchedKeyword})`);
+            logger.info(`Processing PDF: ${pdfUrl} (source: ${matchedKeyword})`);
 
             try {
                 // Process PDF from URL: downloads, parses, and converts to JSON via OpenAI
@@ -216,18 +224,22 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                 if (PER_FILE_MODE) {
                     const mismatches = collectCanonicalUnitMismatches(sanitizedSingle);
                     if (mismatches.length) {
-                        console.log(`[unit-mismatch] per-file ${folderName}/${fileName}:`);
+                        // console.log(`[unit-mismatch] per-file ${folderName}/${fileName}:`);
+                        logger.warn(`[unit-mismatch] per-file ${folderName}/${fileName}:`);
                         for (const m of mismatches) {
-                            console.log(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
+                            // console.log(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
+                            logger.warn(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
                         }
                     }
                     const outPath = await saveSanitizedJson(PER_FILE_OUTPUT_DIR, folderName, fileName, sanitizedSingle);
-                    console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
+                    // console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
+                    logger.info(`\nSaved per-file sanitized JSON -> ${outPath}\n`);
                 }
 
                 formedJsons.push(sanitizedSingle);
             } catch (err) {
-                console.error(`Failed to process PDF ${pdfUrl}:`, err);
+                // console.error(`Failed to process PDF ${pdfUrl}:`, err);
+                logger.error(`Failed to process PDF ${pdfUrl}: ${err?.message ?? err}`);
             }
 
             continue;
@@ -236,13 +248,15 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
         if (isJson) {
             // For JSONs: Check if it's specialchem (server already filtered, but double-check)
             if (!fileName.toLowerCase().includes(SPECIALCHEM_KEYWORD)) {
-                console.log(`Skipping JSON (not Specialchem): ${fileName}`);
+                // console.log(`Skipping JSON (not Specialchem): ${fileName}`);
+                logger.info(`Skipping JSON (not Specialchem): ${fileName}`);
                 continue;
             }
 
             // Construct JSON URL: ${base_url}/data/${folder_name}/${file_name}
             const jsonUrl = `${BASE_URL}/data/${folderName}/${fileName}`;
-            console.log(`Processing JSON: ${jsonUrl}`);
+            // console.log(`Processing JSON: ${jsonUrl}`);
+            logger.info(`Processing JSON: ${jsonUrl}`);
 
             try {
                 // Process JSON from URL: downloads, then transforms via OpenAI API
@@ -271,25 +285,30 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                 if (PER_FILE_MODE) {
                     const mismatches = collectCanonicalUnitMismatches(sanitizedSingle);
                     if (mismatches.length) {
-                        console.log(`[unit-mismatch] per-file ${folderName}/${fileName}:`);
+                        // console.log(`[unit-mismatch] per-file ${folderName}/${fileName}:`);
+                        logger.warn(`[unit-mismatch] per-file ${folderName}/${fileName}:`);
                         for (const m of mismatches) {
-                            console.log(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
+                            // console.log(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
+                            logger.warn(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
                         }
                     }
                     const outPath = await saveSanitizedJson(PER_FILE_OUTPUT_DIR, folderName, fileName, sanitizedSingle);
-                    console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
+                    // console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
+                    logger.info(`\nSaved per-file sanitized JSON -> ${outPath}\n`);
                 }
 
                 formedJsons.push(sanitizedSingle);
             } catch (err) {
-                console.error(`Failed to process JSON ${jsonUrl}:`, err);
+                // console.error(`Failed to process JSON ${jsonUrl}:`, err);
+                logger.error(`Failed to process JSON ${jsonUrl}: ${err?.message ?? err}`);
             }
 
             continue;
         }
 
         // Skip files that are neither PDF nor JSON
-        console.log(`Skipping file (not PDF or JSON): ${fileName}`);
+        // console.log(`Skipping file (not PDF or JSON): ${fileName}`);
+        logger.info(`Skipping file (not PDF or JSON): ${fileName}`);
     }
 
     // Unify all processed JSONs using priority logic (same as before)
@@ -306,12 +325,15 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
     // Required mismatch report (should end up empty after canonicalization)
     const finalMismatches = collectCanonicalUnitMismatches(sanitizedJson);
     if (finalMismatches.length) {
-        console.log(`[unit-mismatch] merged final.json for folder ${folderName}:`);
+        // console.log(`[unit-mismatch] merged final.json for folder ${folderName}:`);
+        logger.warn(`[unit-mismatch] merged final.json for folder ${folderName}:`);
         for (const m of finalMismatches) {
-            console.log(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
+            // console.log(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
+            logger.warn(`  - ${m.path}: "${m.unit}" != "${m.canonical}"`);
         }
     } else {
-        console.log(`[unit-mismatch] merged final.json for folder ${folderName}: none`);
+        // console.log(`[unit-mismatch] merged final.json for folder ${folderName}: none`);
+        logger.info(`[unit-mismatch] merged final.json for folder ${folderName}: none`);
     }
 
     // final json transformation
@@ -320,14 +342,16 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
     if (PER_FILE_MODE) {
         // const finalPath = await saveJsonInFolder(PER_FILE_OUTPUT_DIR, folderName, "final.json", sanitizedJson);
         const finalPath = await saveJsonInFolder(PER_FILE_OUTPUT_DIR, folderName, "final.json", finalJson);
-        console.log(`Saved unified final JSON -> ${finalPath} \n`);
+        // console.log(`Saved unified final JSON -> ${finalPath} \n`);
+        logger.info(`\nSaved unified final JSON -> ${finalPath} \n`);
     }
 
     const flag = await createDataInDB(finalJson, folderName, folderName);
 
 
     if (flag) {
-        console.log(`Added data for folder: ${folderName} successfully`);
+        // console.log(`Added data for folder: ${folderName} successfully`);
+        logger.info(`Added data for folder: ${folderName} successfully`);
     }
 
 

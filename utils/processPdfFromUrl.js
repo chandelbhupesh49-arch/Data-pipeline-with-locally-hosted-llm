@@ -4,6 +4,7 @@ import { jsonrepair } from "jsonrepair";
 import fs from "node:fs";
 import path from "node:path";
 import { saveRawLlmJson } from "./saveSanitizedJson.js";
+import logger from "./logger/logger.js";
 
 
 const dispatcher = new Agent({
@@ -417,7 +418,7 @@ async function performULStreaming(pdfUrl, source) {
 
     let totalPages = 0;
     let pagesDone = 0;
-    const label = "Pages done : ";
+    const label = "Pages done :";
 
     try {
         for await (const line of iterNdjsonLines(response.body)) {
@@ -450,7 +451,8 @@ async function performULStreaming(pdfUrl, source) {
             }
 
             if (msg?.event === "page_error") {
-                console.warn(`UL page error (page ${msg.page}): ${msg.error}`);
+                // console.warn(`UL page error (page ${msg.page}): ${msg.error}`);
+                logger.warn(`UL page error (page ${msg.page}): ${msg.error}`);
                 continue;
             }
 
@@ -481,7 +483,8 @@ async function performULStreaming(pdfUrl, source) {
                 await fs.promises.mkdir(dir, { recursive: true });
                 await fs.promises.writeFile(filePath, extracted, "utf8");
             } catch (e) {
-                console.warn("Failed to save UL OCR extracted text:", e);
+                // console.warn("Failed to save UL OCR extracted text:", e);
+                logger.warn("Failed to save UL OCR extracted text:", e);
             }
         }
 
@@ -515,7 +518,7 @@ async function performOCRStreaming(pdfUrl, source) {
 
     let totalPages = 0;
     let pagesDone = 0;
-    const label = "Pages done : ";
+    const label = "Pages done :";
 
     try {
         for await (const line of iterNdjsonLines(response.body)) {
@@ -523,7 +526,8 @@ async function performOCRStreaming(pdfUrl, source) {
             try {
                 msg = JSON.parse(line);
             } catch (e) {
-                console.warn("Skipping invalid NDJSON line (not JSON):", line.slice(0, 200));
+                // console.warn("Skipping invalid NDJSON line (not JSON):", line.slice(0, 200));
+                logger.warn("Skipping invalid NDJSON line (not JSON):", line.slice(0, 200));
                 continue;
             }
 
@@ -564,7 +568,8 @@ async function performOCRStreaming(pdfUrl, source) {
             // }
 
             if (msg?.event === "page_error") {
-                console.warn(`OCR page error (page ${msg.page}): ${msg.error}`);
+                // console.warn(`OCR page error (page ${msg.page}): ${msg.error}`);
+                logger.warn(`OCR page error (page ${msg.page}): ${msg.error}`);
                 continue;
             }
 
@@ -598,7 +603,8 @@ async function performOCRStreaming(pdfUrl, source) {
                 await fs.promises.mkdir(dir, { recursive: true });
                 await fs.promises.writeFile(filePath, extracted_text, "utf8");
             } catch (e) {
-                console.warn("Failed to save OCR extracted text:", e);
+                // console.warn("Failed to save OCR extracted text:", e);
+                logger.warn("Failed to save OCR extracted text:", e);
             }
         }
 
@@ -617,9 +623,12 @@ async function performOCR(pdfUrl, source) {
         try {
             return await performOCRStreaming(pdfUrl, source);
         } catch (e) {
-            console.warn(
-                `Streaming OCR failed for ${pdfUrl}. Falling back to non-streaming /extract. Reason:`,
-                e?.message ?? e
+            // console.warn(
+            //     `Streaming OCR failed for ${pdfUrl}. Falling back to non-streaming /extract. Reason:`,
+            //     e?.message ?? e
+            // );
+            logger.warn(
+                `Streaming OCR failed for ${pdfUrl}. Falling back to non-streaming /extract. Reason: ${e?.message ?? e}`
             );
         }
     }
@@ -651,9 +660,12 @@ async function performOCR(pdfUrl, source) {
 
         return extracted_text;
     } catch (error) {
-        console.error(
-            `Error processing PDF from URL ${pdfUrl} in DEEPSEEK-OCR-2 BLOCK:`,
-            error
+        // console.error(
+        //     `Error processing PDF from URL ${pdfUrl} in DEEPSEEK-OCR-2 BLOCK:`,
+        //     error
+        // );
+        logger.error(
+            `Error processing PDF from URL ${pdfUrl} in DEEPSEEK-OCR-2 BLOCK: ${error?.message ?? error}`
         );
         throw error;
     }
@@ -1286,7 +1298,8 @@ ${templateJson}
                         parsed
                     );
                 } catch (e) {
-                    console.warn("Failed to save raw LLM JSON:", e);
+                    // console.warn("Failed to save raw LLM JSON:", e);
+                    logger.warn("Failed to save raw LLM JSON:", e);
                 }
             }
 
@@ -1359,7 +1372,8 @@ export async function processPdfFromUrl(pdfUrl, source, materialName) {
 
     // console.log(`-----extracted text --------- : `, extractedText);
 
-    console.log(`\n LLM is Making Your Json ...`)
+    // console.log(`\n LLM is Making Your Json ...`)
+    // logger.info("\nLLM is Making Your Json ...");
 
     // 2 send text to ollama hosted local llm 
     const raw = await makeJSONfromExtractedTextUsingLLM(

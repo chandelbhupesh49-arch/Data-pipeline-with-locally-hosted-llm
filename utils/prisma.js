@@ -3,6 +3,7 @@ const { PrismaClient } = pkg;
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import "dotenv/config";
+import logger from "./logger/logger.js";
 
 const globalForPrisma = globalThis;
 
@@ -27,7 +28,8 @@ export async function checkConnection() {
     await prisma.$connect();
     return true;
   } catch (error) {
-    console.error("Failed to connect to database:", error);
+    // console.error("Failed to connect to database:", error);
+    logger.error("Failed to connect to database:", error?.message ?? error);
     return false;
   }
 }

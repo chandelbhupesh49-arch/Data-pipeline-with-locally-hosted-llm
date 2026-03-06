@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import "dotenv/config";
 // import { outputSchema } from "./transformJson.js";
 import { saveRawLlmJson } from "./saveSanitizedJson.js";
+import logger from "./logger/logger.js";
 
 export const outputSchema = {
   source: null,
@@ -507,7 +508,8 @@ Return ONLY one JSON object matching TEMPLATE_JSON exactly.
           raw
         );
       } catch (e) {
-        console.warn("Failed to save raw LLM JSON (JSON source):", e);
+        // console.warn("Failed to save raw LLM JSON (JSON source):", e);
+        logger.warn("Failed to save raw LLM JSON (JSON source):", e);
       }
     }
 
@@ -520,7 +522,8 @@ Return ONLY one JSON object matching TEMPLATE_JSON exactly.
     // return res;
 
   } catch (error) {
-    console.error(`Error processing JSON from URL ${jsonUrl}:`, error);
+    // console.error(`Error processing JSON from URL ${jsonUrl}:`, error);
+    logger.error(`Error processing JSON from URL ${jsonUrl}: ${error?.message ?? error}`);
     throw error;
   }
 }

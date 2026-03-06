@@ -58,7 +58,7 @@
       "unit": null
     },
     "certifications_and_compliance": {
-      "value": "UL94 V-0, UL Yellow Card"
+      "value": "UL Yellow Card"
     }
   },
   "mechanical": {
@@ -75,9 +75,9 @@
       "test_method": "ISO 527-2"
     },
     "strain_at_break": {
-      "value": 3.5,
+      "value": "> 50",
       "unit": "%",
-      "test_condition": null,
+      "test_condition": "90°C",
       "test_method": "ISO 527-2"
     },
     "flexural_modulus": {
@@ -161,16 +161,16 @@
       "test_method": "ISO 1133"
     },
     "density_melt": {
-      "value": null,
-      "unit": null
+      "value": 0.898,
+      "unit": "g/cm³"
     },
     "specific_heat_capacity_melt": {
-      "value": null,
-      "unit": null
+      "value": 2530,
+      "unit": "J/kg/°C"
     },
     "thermal_conductivity_melt": {
-      "value": null,
-      "unit": null
+      "value": 0.28,
+      "unit": "W/m/K"
     },
     "molding_shrinkage_normal": {
       "value": 0.91,
@@ -182,7 +182,7 @@
       "value": 1.1,
       "unit": "%",
       "test_condition": null,
-      "test_method": "ISO 294-4"
+      "test_method": "ISO 294-4; ASTM D1042; ISO 2796"
     }
   },
   "processing": {
@@ -209,12 +209,12 @@
       "test_method": null
     },
     "melt_temperature_min": {
-      "value": 220,
-      "unit": "°C"
+      "value": null,
+      "unit": null
     },
     "melt_temperature_max": {
-      "value": 220,
-      "unit": "°C"
+      "value": null,
+      "unit": null
     },
     "mold_temperature_min": {
       "value": null,
@@ -249,7 +249,7 @@
       "test_method": "IEC 62631-2-1"
     },
     "dissipation_factor_100hz": {
-      "value": 0.009,
+      "value": "9E-3",
       "unit": null,
       "test_condition": "100 Hz",
       "test_method": "IEC 62631-2-1"
@@ -261,7 +261,7 @@
       "test_method": "IEC 62631-2-1"
     },
     "volume_resistivity": {
-      "value": "=> 1.0E+13",
+      "value": "> 1E13",
       "unit": "Ohm*m",
       "test_condition": null,
       "test_method": "IEC 62631-3-1"
@@ -352,10 +352,10 @@
       "test_method": "ISO 4589-2"
     },
     "glow_wire_flammability_index_gwfi": {
-      "value": 960,
-      "unit": "°C",
-      "test_condition": "0.38 mm",
-      "test_method": "IEC 60695-2-12"
+      "value": null,
+      "unit": null,
+      "test_condition": null,
+      "test_method": null
     }
   },
   "chemical": {
