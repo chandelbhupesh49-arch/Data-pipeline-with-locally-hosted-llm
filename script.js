@@ -154,8 +154,9 @@ for (const [folderName, filenames] of Object.entries(assetsData)) {
         continue;
     }
 
-    // Process all files in this folder
-    await makeEntryForThisFolder(folderName, filenames, formedJsons);
+    // Process all files in this folder (sorted for deterministic merge order)
+    const sortedFilenames = [...filenames].sort();
+    await makeEntryForThisFolder(folderName, sortedFilenames, formedJsons);
 }
 
 await disconnect();
@@ -233,7 +234,7 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                     }
                     const outPath = await saveSanitizedJson(PER_FILE_OUTPUT_DIR, folderName, fileName, sanitizedSingle);
                     // console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
-                    logger.info(`\nSaved per-file sanitized JSON -> ${outPath}\n`);
+                    logger.info(`Saved per-file sanitized JSON -> ${outPath}`);
                 }
 
                 formedJsons.push(sanitizedSingle);
@@ -294,7 +295,7 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                     }
                     const outPath = await saveSanitizedJson(PER_FILE_OUTPUT_DIR, folderName, fileName, sanitizedSingle);
                     // console.log(`Saved per-file sanitized JSON -> ${outPath}\n`);
-                    logger.info(`\nSaved per-file sanitized JSON -> ${outPath}\n`);
+                    logger.info(`Saved per-file sanitized JSON -> ${outPath}`);
                 }
 
                 formedJsons.push(sanitizedSingle);

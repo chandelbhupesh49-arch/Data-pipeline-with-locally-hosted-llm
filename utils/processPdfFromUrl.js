@@ -50,16 +50,35 @@ function barString(done, total) {
 }
 
 function progressUpdate(label, done, total) {
+    if (!process.stdout.isTTY) return;
     hideCursor();
     process.stdout.clearLine(0);
     process.stdout.cursorTo(0);
     process.stdout.write(`${label} ${done}/${total} ${barString(done, total)}`);
 }
 
-function progressFinish(label, total) {
-    // Print one final full bar and move to the next line (keeps it on screen)
-    progressUpdate(label, total, total);
-    process.stdout.write(" completed!\n");
+// function progressFinish(label, total) {
+//     // Print one final full bar and move to the next line (keeps it on screen)
+//     progressUpdate(label, total, total);
+//     process.stdout.write(" completed!\n");
+// }
+
+function progressFinish(label, done, total) {
+    if (!process.stdout.isTTY) return;
+    hideCursor();
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+    process.stdout.write(`${label} ${done}/${total} ${barString(done, total)}\n`);
+    showCursor();
+}
+
+function progressAbort() {
+    if (!process.stdout.isTTY) return;
+    hideCursor();
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+    process.stdout.write("\n");
+    showCursor();
 }
 
 process.on("exit", showCursor);
@@ -491,7 +510,12 @@ async function performULStreaming(pdfUrl, source) {
         return extracted;
 
     } finally {
-        showCursor();
+        // showCursor();
+        if (totalPages > 0) {
+            progressFinish(label, pagesDone || totalPages, totalPages);
+        } else {
+            progressAbort();
+        }
     }
 }
 
@@ -611,7 +635,12 @@ async function performOCRStreaming(pdfUrl, source) {
         return extracted_text;
 
     } finally {
-        showCursor();
+        // showCursor();
+        if (totalPages > 0) {
+            progressFinish(label, pagesDone || totalPages, totalPages);
+        } else {
+            progressAbort();
+        }
     }
 }
 
@@ -677,303 +706,6 @@ async function makeJSONfromExtractedTextUsingLLM(extractedText, pdfUrl, source, 
 
     const isUL = String(source).toLowerCase() === "ul";
 
-    //     const ulRules = isUL ? `
-    // UL MODE (VERY IMPORTANT)
-    // - The text is pre-cleaned from a UL Prospector comparison table.
-    // - Generic column values have been removed.
-    // - Only use values that appear after "VALUE=" in the evidence lines.
-    // - If a property has no VALUE= line, return null (do NOT guess, do NOT use other numbers).
-    // - Ignore any disclaimer/noise lines.
-    // - Treat each evidence line as authoritative: SECTION, PROPERTY/FIELD, CONDITION, VALUE, UNIT, TEST_METHOD.
-
-    // CRITICAL: MAP UL PROPERTY NAMES TO THIS SCHEMA (EXACT MAPPING)
-    // Use these mappings ONLY when you see a matching PROPERTY line.
-
-    // GENERAL
-    // - SECTION=General FIELD=Name -> general.name.value
-    // - SECTION=General FIELD=Description -> general.description.value
-    // - SECTION=General FIELD=Availability -> general.regional_availability.value
-    // - Certifications:
-    //   - If description contains "UL94" or "V-0" etc, add "UL94 V-0" to general.certifications_and_compliance.value
-    //   - If any line mentions "UL Yellow Card" (not in your current cleaned output), add "UL Yellow Card"
-    //   - Keep comma-separated unique items.
-
-    // PHYSICAL
-    // - PROPERTY="Density / Specific Gravity" -> physical.density (value/unit/test_method) and put CONDITION into test_condition if present
-    // - PROPERTY contains "Water Absorption" -> physical.water_absorption (value/unit/test_condition/test_method)
-
-    // RHEOLOGICAL
-    // - PROPERTY contains "Melt Mass-Flow Rate" or "MFR" -> rheological.melt_volume_flow_rate_mvr ONLY IF the CONDITION mentions "MVR"
-    // - PROPERTY contains "Melt Volume-Flow Rate" or "MVR" -> rheological.melt_volume_flow_rate_mvr
-    // - PROPERTY contains "Molding Shrinkage":
-    //     - CONDITION contains "Flow" -> rheological.molding_shrinkage_parallel
-    //     - CONDITION contains "Across Flow" or "Transverse" -> rheological.molding_shrinkage_normal
-
-    // MECHANICAL
-    // - PROPERTY="Tensile Modulus" -> mechanical.tensile_modulus
-    // - PROPERTY="Tensile Strength" AND CONDITION contains "Break" -> mechanical.stress_at_break
-    // - PROPERTY="Tensile Elongation" AND CONDITION contains "Break" -> mechanical.strain_at_break
-    // - PROPERTY="Flexural Modulus" -> mechanical.flexural_modulus
-    // - PROPERTY="Flexural Strength" -> mechanical.flexural_strength
-    // - PROPERTY contains "Charpy Notched" AND CONDITION contains "23°C" -> mechanical.charpy_notched_impact_strength_23c
-    // - PROPERTY contains "Charpy Notched" AND (CONDITION contains "-30°C" OR "-30") -> mechanical.charpy_notched_impact_strength_minus_30c
-    // - PROPERTY contains "Charpy Unnotched" AND CONDITION contains "23°C" -> mechanical.charpy_impact_strength_23c
-    // - PROPERTY contains "Charpy Unnotched" AND (CONDITION contains "-30°C" OR "-30") -> mechanical.charpy_impact_strength_minus_30c
-    // - PROPERTY contains "Notched Izod" AND CONDITION contains "23°C" -> mechanical.izod_impact_strength_23c
-    // - PROPERTY contains "Notched Izod" AND (CONDITION contains "-30°C" OR "-30") -> mechanical.izod_impact_strength_minus_30c
-
-    // THERMAL
-    // - PROPERTY contains "Glass Transition Temperature" -> thermal.glass_transition_temperature (NOTE: your schema does not have this. So ignore unless you add it.)
-    // - PROPERTY contains "Melting Temperature" -> thermal.melting_temperature_10c_per_min
-    // - PROPERTY contains "Deflection Temperature Under Load":
-    //     - CONDITION contains "0.45" -> thermal.temp_of_deflection_under_load_0_45_mpa
-    //     - CONDITION contains "1.8" -> thermal.temp_of_deflection_under_load_1_80_mpa
-    // - PROPERTY="CLTE" or contains "Coeff" and "Therm" and "Expansion":
-    //     - CONDITION contains "Flow" or "Parallel" -> thermal.coeff_of_linear_therm_expansion_cte_parallel
-    //     - CONDITION contains "Transverse" or "Normal" -> thermal.coeff_of_linear_therm_expansion_cte_normal
-    // - PROPERTY contains "Flame Rating" or UL94 -> thermal.flame_rating_ul_94 (keep VALUE like V-0/5VA as string)
-
-    // ELECTRICAL
-    // - PROPERTY contains "Dielectric Constant":
-    //     - CONDITION contains "100 Hz" -> electrical.relative_permittivity_100hz
-    //     - CONDITION contains "1 MHz" -> electrical.relative_permittivity_1mhz
-    // - PROPERTY contains "Dissipation Factor":
-    //     - CONDITION contains "100 Hz" -> electrical.dissipation_factor_100hz
-    //     - CONDITION contains "1 MHz" -> electrical.dissipation_factor_1mhz
-    // - PROPERTY contains "Volume Resistivity" -> electrical.volume_resistivity
-    // - PROPERTY contains "Surface Resistivity" -> electrical.surface_resistivity
-    // - PROPERTY contains "Dielectric Strength" -> electrical.electric_strength
-    // - PROPERTY contains "Comparative Tracking Index" OR "CTI" (and if UNIT=V) -> electrical.comparative_tracking_index_cti
-    // - If CTI is shown as PLC (no V unit), put it into electrical.comparative_tracking_index_cti_plc instead.
-
-    // PROCESSING (Injection section)
-    // - If SECTION=Injection PROPERTY="Drying Temperature" -> processing.drying_temperature_circulating_air_dryer
-    // - If SECTION=Injection PROPERTY="Drying Time" and CONDITION contains "Desiccant Dryer":
-    //     -> processing.drying_time_circulating_air_dryer_min/max:
-    //        - If VALUE is a single number, set both min=max=value
-    //        - If VALUE is a range, split into min/max
-    // - If SECTION=Injection FIELD="Suggested Max Moisture" and VALUE contains "<":
-    //     -> processing.residual_moisture_content_max.value = "< 0.020" (string), unit="%" (if present)
-    // - If SECTION=Injection PROPERTY contains "Processing (Melt) Temp" and VALUE is a range:
-    //     -> processing.melt_temperature_min/max from range
-    // - If SECTION=Injection PROPERTY contains "Mold Temperature" and VALUE is a range:
-    //     -> processing.mold_temperature_min/max from range\
-
-    // A) PROCESSING: Melt temp min/max
-    // If you see:
-    // SECTION=Injection | PROPERTY=Drying Time | CONDITION=Processing (Melt) Temp | VALUE=<V> | UNIT=<U>
-    // Then:
-    // - Parse <V> as a range/single using the existing RANGE PARSING rules.
-    // - Write results to:
-    //   processing.melt_temperature_min.value
-    //   processing.melt_temperature_max.value
-    // - Set unit for BOTH min and max to <U> if <U> exists (usually "°C").
-
-    // B) PROCESSING: Mold temp min/max
-    // If you see:
-    // SECTION=Injection | PROPERTY=Drying Time | CONDITION=Mold Temperature | VALUE=<V> | UNIT=<U>
-    // Then:
-    // - Parse <V> as a range/single using RANGE PARSING.
-    // - Write results to:
-    //   processing.mold_temperature_min.value
-    //   processing.mold_temperature_max.value
-    // - Set unit for BOTH to <U> if <U> exists (usually "°C").
-
-    // IMPORTANT: “Melt Temperature, Optimum” and “Mold Temperature, Optimum” are NOT the min/max range fields.
-    // - Do NOT use “…Optimum” lines for *_min/max unless the range lines are missing.
-    // - If only Optimum exists, leave min/max null (do not guess).
-
-    // C) ELECTRICAL: Comparative Tracking Index (CTI) 250 V
-    // If you see:
-    // SECTION=Electrical | PROPERTY=Arc Resistance | CONDITION=Comparative Tracking Index | VALUE=<V> | UNIT=V | TEST_METHOD=<M>
-    // Then:
-    // - Set electrical.comparative_tracking_index_cti.value = <V> (number if pure number)
-    // - Set electrical.comparative_tracking_index_cti.unit = "V"
-    // - Set electrical.comparative_tracking_index_cti.test_method = <M> if present
-    // - Set electrical.comparative_tracking_index_cti.test_condition = "Comparative Tracking Index" (or keep null if your schema doesn’t include it)
-
-    // Do NOT leave this field null if that evidence line exists.
-
-    // D) ELECTRICAL: Relative permittivity test_condition
-    // If you see:
-    // SECTION=Electrical | PROPERTY=Dielectric Constant | CONDITION=100 Hz | VALUE=<V> | TEST_METHOD=<M>
-    // Then:
-    // - electrical.relative_permittivity_100hz.value = <V>
-    // - electrical.relative_permittivity_100hz.test_condition = "100 Hz"
-    // - electrical.relative_permittivity_100hz.test_method = <M>
-
-    // If you see:
-    // SECTION=Electrical | PROPERTY=Dielectric Constant | CONDITION=1 MHz | VALUE=<V> | TEST_METHOD=<M>
-    // Then:
-    // - electrical.relative_permittivity_1mhz.value = <V>
-    // - electrical.relative_permittivity_1mhz.test_condition = "1 MHz"
-    // - electrical.relative_permittivity_1mhz.test_method = <M>
-
-    // Do NOT set test_condition to null when CONDITION explicitly contains “100 Hz” or “1 MHz”.
-
-    // ADDITIONAL INFORMATION
-    // - SECTION=Additional Information PROPERTY="Emission of Organic Compounds" -> ignore (not in schema)
-
-    // CHOOSING BETWEEN MULTIPLE LINES
-    // - If multiple rows map to the same schema field, choose the one with:
-    //   1) a specific CONDITION (e.g., "23°C", "-30°C", "0.45 MPa") over blank
-    //   2) a TEST_METHOD present over missing
-    //   3) a numeric VALUE over "--"
-    //   Do NOT overwrite a better row with a worse row.
-
-    // RANGE PARSING (MANDATORY)
-    // - Apply range parsing ONLY for the min/max schema fields listed in the prompt:
-    //   - If VALUE is "240 to 260" -> min=240 max=260
-    //   - If VALUE is "< 0.020" -> min=null max="< 0.020" (as STRING because of "<")
-    //   - If VALUE is "4.0" and field expects min/max -> min=4.0 max=4.0
-
-    //   UL MODE - EXTRA HARD RULES (PATCH)
-    // - SCIENTIFIC NOTATION RULE: If VALUE= contains "E" or "e" (example: 3.3E-3, 1.0E+16), keep it EXACTLY as a STRING. Do NOT convert it to decimals.
-    // - MULTI-HIT RULE: If multiple VALUE= lines exist for the same property name, prefer:
-    //   (1) the line whose CONDITION looks most specific (contains °C, hr, Hz, MPa, mm, RH, etc),
-    //   (2) otherwise the first VALUE= line.
-    // - UL→SCHEMA ALIAS MAP (use these exact mappings):
-    //   - density ← "Density / Specific Gravity"
-    //   - tensile_modulus ← "Tensile Modulus"
-    //   - flexural_modulus ← "Flexural Modulus"
-    //   - flexural_strength ← "Flexural Strength"
-    //   - electric_strength ← "Dielectric Strength"
-    //   - volume_resistivity ← "Volume Resistivity"
-    //   - surface_resistivity ← "Surface Resistivity"
-    //   - flame_rating_ul_94 ← "Flame Rating" (keep thickness like "0.38 mm" in test_condition)
-
-    // ` : "";
-
-    //     const ulRules = isUL ? `
-    // UL MODE (VERY IMPORTANT)
-    // - The text is pre-cleaned from a UL Prospector comparison table.
-    // - Generic column values have been removed.
-    // - Only use values that appear after "VALUE=" in the evidence lines.
-    // - If a property has no VALUE= line, return null (do NOT guess, do NOT use other numbers).
-    // - Ignore any disclaimer/noise lines.
-    // - Treat each evidence line as authoritative: SECTION, PROPERTY/FIELD, CONDITION, VALUE, UNIT, TEST_METHOD.
-
-    // CRITICAL: DO NOT "NORMALIZE" VALUES
-    // - NEVER compute or re-format values.
-    // - If VALUE contains scientific notation (E/e), keep it EXACTLY as in VALUE= (string).
-    // - If VALUE contains a range like "0.90 to 1.2" keep it EXACTLY as in VALUE= (string).
-    // - Do NOT replace "3.6E-5" with "0.000036".
-    // - Do NOT replace "0.90 to 1.2" with "0.9".
-
-    // GENERAL (explicit field mappings)
-    // - SECTION=General FIELD=Name -> general.name.value
-    // - SECTION=General FIELD=Description -> general.description.value
-    // - SECTION=General FIELD=Availability -> general.regional_availability.value
-    // - SECTION=General FIELD=Manufacturer / Supplier -> general.supplier.value
-    // - SECTION=General FIELD=Processing Method -> general.processing.value
-    // - SECTION=General FIELD=Forms -> general.delivery_form.value
-    // - SECTION=General FIELD=Generic Symbol -> general.generic_type.value
-
-    // CERTIFICATIONS (keep only real certifications, not test methods)
-    // - general.certifications_and_compliance.value may include ONLY:
-    //   - "UL94 V-0" (or UL94 with rating if present)
-    //   - "UL Yellow Card" (if any FIELD mentions "UL Yellow Card")
-    // - DO NOT add ISO/IEC/ASTM/EN/UL 746B/60695/etc into certifications (those are test methods).
-
-    // FILLER + FILLER_PERCENT (CRITICAL FIX)
-    // Goal: general.filler.value must be the MATERIAL (e.g., "Glass Fiber"), NOT "Weight".
-    // Goal: general.filler_percent.value must be the number (e.g., 15) and unit "%".
-
-    // Priority order (highest wins; do NOT overwrite a better one with a worse one):
-    // 1) If you see:
-    //    - SECTION=General FIELD=Filler -> general.filler.value
-    //    - SECTION=General FIELD=Filler Percent -> general.filler_percent.value/unit
-    //    - SECTION=General PROPERTY=Filler Percent -> general.filler_percent.value/unit (same meaning)
-    // 2) Else, if you see SECTION=General FIELD=Filler / Reinforcement with VALUE that contains BOTH a filler material + a percent,
-    //    e.g. "Glass Fiber, 15% Filler by Weight":
-    //    - general.filler.value = "Glass Fiber"
-    //    - general.filler_percent.value = 15
-    //    - general.filler_percent.unit = "%"
-    //    IMPORTANT: If FIELD=Filler / Reinforcement VALUE is ONLY "Weight" (or "Volume"), that is NOT a filler material.
-    //    In that case: DO NOT set general.filler to "Weight". Leave filler null unless you find a real filler elsewhere.
-    // 3) Else, parse from any General FIELD that contains "UL Yellow Card" if it includes filler info like:
-    //    "Glass Fiber, 15% Filler by Weight"
-    //    Same extraction as rule #2.
-    // 4) Else, parse from Description ONLY if it explicitly states something like:
-    //    "15% glass-fiber reinforced"
-    //    Then:
-    //    - filler = "Glass Fiber"
-    //    - filler_percent = 15 "%"
-    //    (This is allowed because it is explicitly present in the text.)
-
-    // PHYSICAL
-    // - PROPERTY="Density / Specific Gravity" -> physical.density (value/unit/test_method)
-    // - PROPERTY contains "Water Absorption" -> physical.water_absorption (value/unit/test_condition/test_method)
-
-    // RHEOLOGICAL
-    // - PROPERTY contains "Melt Mass-Flow Rate" or "MFR" -> rheological.melt_volume_flow_rate_mvr ONLY IF the CONDITION mentions "MVR"
-    // - PROPERTY contains "Melt Volume-Flow Rate" or "MVR" -> rheological.melt_volume_flow_rate_mvr
-    // - PROPERTY contains "Molding Shrinkage":
-    //     - CONDITION contains "Flow" -> rheological.molding_shrinkage_parallel
-    //     - CONDITION contains "Across Flow" or "Transverse" -> rheological.molding_shrinkage_normal
-    //   IMPORTANT: if VALUE contains "to" (range), keep it as STRING exactly (do not reduce to first number).
-
-    // MECHANICAL
-    // - PROPERTY="Tensile Modulus" -> mechanical.tensile_modulus
-    // - PROPERTY="Tensile Strength"-> mechanical.stress_at_break 
-    // - PROPERTY="Tensile Elongation"-> mechanical.strain_at_break
-    // - PROPERTY="Flexural Modulus" -> mechanical.flexural_modulus
-    // - PROPERTY="Flexural Strength" -> mechanical.flexural_strength
-    // - PROPERTY contains "Charpy Notched" AND CONDITION contains "23°C" -> mechanical.charpy_notched_impact_strength_23c
-    // - PROPERTY contains "Charpy Notched" AND (CONDITION contains "-30°C" OR "-30") -> mechanical.charpy_notched_impact_strength_minus_30c
-    // - PROPERTY contains "Charpy Unnotched" AND CONDITION contains "23°C" -> mechanical.charpy_impact_strength_23c
-    // - PROPERTY contains "Charpy Unnotched" AND (CONDITION contains "-30°C" OR "-30") -> mechanical.charpy_impact_strength_minus_30c
-    // - PROPERTY contains "Notched Izod" AND CONDITION contains "23°C" -> mechanical.izod_impact_strength_23c
-    // - PROPERTY contains "Notched Izod" AND (CONDITION contains "-30°C" OR "-30") -> mechanical.izod_impact_strength_minus_30c
-
-    // THERMAL
-    // - PROPERTY contains "Melting Temperature" -> thermal.melting_temperature_10c_per_min
-    // - PROPERTY contains "Deflection Temperature Under Load":
-    //     - CONDITION contains "0.45" -> thermal.temp_of_deflection_under_load_0_45_mpa
-    //     - CONDITION contains "1.8" -> thermal.temp_of_deflection_under_load_1_80_mpa
-    // - PROPERTY="CLTE":
-    //     - CONDITION contains "Flow" or "Parallel" -> thermal.coeff_of_linear_therm_expansion_cte_parallel
-    //     - CONDITION contains "Transverse" or "Normal" -> thermal.coeff_of_linear_therm_expansion_cte_normal
-    //   IMPORTANT: CLTE values commonly contain E-notation; keep them EXACT as strings if they do.
-
-    // - PROPERTY contains "Flame Rating" -> thermal.flame_rating_ul_94 (keep VALUE like V-0/5VA as string)
-
-    // ELECTRICAL
-    // - PROPERTY contains "Dielectric Constant":
-    //     - CONDITION contains "100 Hz" -> electrical.relative_permittivity_100hz
-    //     - CONDITION contains "1 MHz" -> electrical.relative_permittivity_1mhz
-    // - PROPERTY contains "Dissipation Factor":
-    //     - CONDITION contains "100 Hz" -> electrical.dissipation_factor_100hz
-    //     - CONDITION contains "1 MHz" -> electrical.dissipation_factor_1mhz
-    // - PROPERTY contains "Volume Resistivity" -> electrical.volume_resistivity
-    // - PROPERTY contains "Surface Resistivity" -> electrical.surface_resistivity
-    // - PROPERTY contains "Dielectric Strength" -> electrical.electric_strength
-    // - PROPERTY contains "Comparative Tracking Index" OR "CTI" AND UNIT=V -> electrical.comparative_tracking_index_cti
-    // - If CTI is PLC (no V), put into electrical.comparative_tracking_index_cti_plc instead.
-
-    // PROCESSING (Injection section)
-    // - If SECTION=Injection PROPERTY="Drying Temperature" -> processing.drying_temperature_circulating_air_dryer
-    // - If SECTION=Injection PROPERTY="Drying Time" and CONDITION contains "Desiccant Dryer":
-    //     -> processing.drying_time_circulating_air_dryer_min/max:
-    //        - If VALUE is a single number, set both min=max=value
-    //        - If VALUE is a range, split into min/max (this is one of the ONLY places you split ranges)
-    // - If SECTION=Injection FIELD="Suggested Max Moisture" and VALUE contains "<":
-    //     -> processing.residual_moisture_content_max.value = "< 0.020" (string), unit="%" (if present)
-    // - If SECTION=Injection PROPERTY contains "Processing (Melt) Temp" and VALUE is a range:
-    //     -> processing.melt_temperature_min/max from range
-    // - If SECTION=Injection PROPERTY contains "Mold Temperature" and VALUE is a range:
-    //     -> processing.mold_temperature_min/max from range
-
-    // CHOOSING BETWEEN MULTIPLE LINES
-    // - If multiple rows map to the same schema field, choose the one with:
-    //   1) a specific CONDITION (e.g., "23°C", "-30°C", "0.45 MPa") over blank
-    //   2) a TEST_METHOD present over missing
-    //   3) a numeric VALUE over "--"
-
-    //   Do NOT overwrite a better row with a worse row.
-    // ` : "";
-
-    // ✅ Paste this entire block as your `ulRules` string (drop-in replacement)
 
     const ulRules = isUL ? `
 UL MODE (VERY IMPORTANT)
@@ -1383,7 +1115,7 @@ export async function processPdfFromUrl(pdfUrl, source, materialName) {
         materialName
     );
 
-    
+
 
     // 3 schema validation
     const formedJson = normalizeToTemplate(outputSchema, raw);

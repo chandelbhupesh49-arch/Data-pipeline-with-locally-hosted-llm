@@ -1,3 +1,5 @@
+import logger from "./logger/logger.js";
+
 const priorityByPath = {
   // applies to ALL children too (value/unit/test_condition/test_method...)
   // need to be reviewed manually
@@ -183,15 +185,41 @@ function mergeRecordsByFieldPriority(
 ) {
   if (!Array.isArray(records) || records.length === 0) return {};
 
-  // Group by source (first record for a source wins; change if you want last-wins)
+  // Group by source: keep all records per source in stable order (deterministic merge)
   const bySource = {};
   for (const r of records) {
     const s = r && r.source;
-    if (s && !bySource[s]) bySource[s] = r;
+    if (s) {
+      if (!bySource[s]) bySource[s] = [];
+      bySource[s].push(r);
+    }
   }
 
   // Use first record as schema template (you said keys are identical)
   const template = records[0];
+
+  /**
+   * Get first meaningful value for path from an ordered list of records, and any conflicting same-source values for logging.
+   */
+  function getFirstMeaningfulInOrder(recordList, path) {
+    let first = undefined;
+    const conflicts = [];
+    if (!Array.isArray(recordList)) return { value: first, conflicts };
+    for (const r of recordList) {
+      const v = getValueAtPath(r, path);
+      if (isMeaningful(v)) {
+        if (first === undefined) {
+          first = v;
+        } else {
+          const same = typeof v === "object" && v !== null
+            ? JSON.stringify(first) === JSON.stringify(v)
+            : first === v;
+          if (!same) conflicts.push(v);
+        }
+      }
+    }
+    return { value: first, conflicts };
+  }
 
   function mergeNode(path, templateNode) {
     // Objects: recurse key by key
@@ -212,12 +240,16 @@ function mergeRecordsByFieldPriority(
     // NON-STRICT MODE: Path not in priorityByPath - use existing behavior with template fallback
     const hasStrictPriority = hasExplicitPriority(path, priorityByPath);
 
-    // Arrays: choose first non-empty array by priority
+    // Arrays: choose first non-empty array by priority; within a source, first file wins (stable order)
     if (Array.isArray(templateNode)) {
       const order = getPriorityForPath(path, priorityByPath, defaultPriority);
       for (const src of order) {
-        const candidate = getValueAtPath(bySource[src], path);
-        if (Array.isArray(candidate) && candidate.length > 0) return deepClone(candidate);
+        const list = bySource[src];
+        if (!Array.isArray(list)) continue;
+        for (const rec of list) {
+          const candidate = getValueAtPath(rec, path);
+          if (Array.isArray(candidate) && candidate.length > 0) return deepClone(candidate);
+        }
       }
 
       // STRICT MODE: If path has explicit priority, return null (no template fallback)
@@ -229,11 +261,17 @@ function mergeRecordsByFieldPriority(
       return deepClone(templateNode);
     }
 
-    // Primitive leaf: choose first meaningful value by priority
+    // Primitive leaf: choose first meaningful value by priority; within a source, first file wins, log conflicts
     const order = getPriorityForPath(path, priorityByPath, defaultPriority);
     for (const src of order) {
-      const candidate = getValueAtPath(bySource[src], path);
-      if (isMeaningful(candidate)) return candidate;
+      const list = bySource[src];
+      const { value, conflicts } = getFirstMeaningfulInOrder(list || [], path);
+      if (value !== undefined) {
+        if (conflicts.length > 0) {
+          logger.warn(`[merge] same-source conflict at "${path}" (source: ${src}): keeping first, others ignored:`, conflicts);
+        }
+        return value;
+      }
     }
 
     // STRICT MODE: If path has explicit priority entry, return null (no template fallback)
