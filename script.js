@@ -11,6 +11,8 @@ import { saveSanitizedJson, saveJsonInFolder } from "./utils/saveSanitizedJson.j
 import { canonicalizeUnitsByFieldPath, collectCanonicalUnitMismatches } from "./utils/unitNormalization.js";
 import { finalSchemaTransformation } from "./utils/finalSchema.js";
 import logger from "./utils/logger/logger.js";
+import fs from "node:fs"
+import path from "path"
 
 function setFolderName(obj, folderName) {
     if (!obj || typeof obj !== "object") return obj;
@@ -20,12 +22,74 @@ function setFolderName(obj, folderName) {
     return obj;
 }
 
+function isMeaningfulFieldValue(v) {
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string" && v.trim() === "") return false;
+    return true;
+}
+
+function isDroppedValue(before, after) {
+    return isMeaningfulFieldValue(before) && !isMeaningfulFieldValue(after);
+}
+
+export function logDroppedMeasurementFields(rawNode, sanitizedNode, currentPath = "") {
+    if (rawNode === null || rawNode === undefined) return;
+
+    if (Array.isArray(rawNode)) {
+        rawNode.forEach((item, idx) => {
+            const sanitizedItem = Array.isArray(sanitizedNode) ? sanitizedNode[idx] : undefined;
+            logDroppedMeasurementFields(item, sanitizedItem, `${currentPath}[${idx}]`);
+        });
+        return;
+    }
+
+    if (typeof rawNode !== "object") return;
+
+    const measurementKeys = ["value", "unit", "test_condition", "test_method"];
+    const hasRelevantKey = measurementKeys.some((k) => k in rawNode);
+
+    if (hasRelevantKey) {
+        const rawValue = rawNode?.value;
+        const rawUnit = rawNode?.unit;
+        const rawTestCondition = rawNode?.test_condition;
+        const rawTestMethod = rawNode?.test_method;
+
+        const sanitizedValue = sanitizedNode?.value;
+        const sanitizedUnit = sanitizedNode?.unit;
+        const sanitizedTestCondition = sanitizedNode?.test_condition;
+        const sanitizedTestMethod = sanitizedNode?.test_method;
+
+        if (isDroppedValue(rawValue, sanitizedValue)) {
+            logger.warn(`dropped value, found ${JSON.stringify(rawValue)} for ${currentPath}`, { dropped: true });
+        }
+
+        if (isDroppedValue(rawUnit, sanitizedUnit)) {
+            logger.warn(`dropped unit, found ${JSON.stringify(rawUnit)} for ${currentPath}`, { dropped: true });
+        }
+
+        if (isDroppedValue(rawTestCondition, sanitizedTestCondition)) {
+            logger.warn(`dropped test_condition, found ${JSON.stringify(rawTestCondition)} for ${currentPath}`, { dropped: true });
+        }
+
+        if (isDroppedValue(rawTestMethod, sanitizedTestMethod)) {
+            logger.warn(`dropped test_method, found ${JSON.stringify(rawTestMethod)} for ${currentPath}`, { dropped: true });
+        }
+    }
+
+    for (const key of Object.keys(rawNode)) {
+        const nextPath = currentPath ? `${currentPath}.${key}` : key;
+        const rawChild = rawNode[key];
+        const sanitizedChild = sanitizedNode?.[key];
+        logDroppedMeasurementFields(rawChild, sanitizedChild, nextPath);
+    }
+}
+
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 const PER_FILE_MODE = (process.env.PER_FILE_MODE || "false").toLowerCase() === "true";
 const PER_FILE_OUTPUT_DIR = process.env.PER_FILE_OUTPUT_DIR || "./per_file_sanitized";
 
 // Keywords for determining source (matching is already handled at server, but we need to extract source)
-const PDF_NAME_KEYWORDS = ["supplier", "mdc", "ul", "campusplastics","marketing"];
+const PDF_NAME_KEYWORDS = ["supplier", "mdc", "ul", "campusplastics", "marketing"];
 const SPECIALCHEM_KEYWORD = "specialchem";
 
 /**
@@ -212,6 +276,9 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                 // console.log("RAW volume_resistivity:", JSON.stringify(jsonData?.electrical?.volume_resistivity, null, 2));
 
                 let sanitizedSingle = sanitizeUnifiedJson(jsonData);
+                fs.appendFileSync(path.join(process.cwd(), "Logs", "dropped_feilds.log"), "\n");
+                logDroppedMeasurementFields(jsonData, sanitizedSingle);
+
                 sanitizedSingle = canonicalizeUnitsByFieldPath(sanitizedSingle, { strict: false });
                 sanitizedSingle = sanitizeGenericAndClassifyPolymer(sanitizedSingle);
                 setFolderName(sanitizedSingle, folderName);
@@ -271,7 +338,9 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
                 // console.log("RAW volume_resistivity:", JSON.stringify(transformedJson?.electrical?.volume_resistivity, null, 2));
 
 
-                let sanitizedSingle = sanitizeUnifiedJson(transformedJson,{ strict: false });
+                let sanitizedSingle = sanitizeUnifiedJson(transformedJson, { strict: false });
+                fs.appendFileSync(path.join(process.cwd(), "Logs", "dropped_feilds.log"), "\n");
+                logDroppedMeasurementFields(transformedJson, sanitizedSingle);
                 sanitizedSingle = canonicalizeUnitsByFieldPath(sanitizedSingle, { strict: false });
                 sanitizedSingle = sanitizeGenericAndClassifyPolymer(sanitizedSingle);
                 setFolderName(sanitizedSingle, folderName);

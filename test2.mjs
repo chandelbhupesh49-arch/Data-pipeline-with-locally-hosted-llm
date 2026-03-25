@@ -202,7 +202,7 @@
 
 import fs from "fs";
 import path from "path";
-import {fileURLToPath} from "node:url";
+import { fileURLToPath } from "node:url";
 
 console.log(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
@@ -220,3 +220,119 @@ const __dirname = path.dirname(__filename);
 
 
 
+
+
+
+const tin = {
+    "success": true,
+    "message": "Bull receipt parsed successfully",
+    "data": {
+        "model": "gpt-4o-mini",
+        "data": {
+            "store": {
+                "name": "Publix",
+                "location": "Jacaranda Plaza",
+                "address": "8101 W. Sunrise Blvd.",
+                "city": "Plantation",
+                "state": "FL",
+                "zip": "33322",
+                "phone": "954-452-1362",
+                "store_manager": "Richard Anderson"
+            },
+            "items": [
+                {
+                    "name": "CRYSTAL SPRING WTR",
+                    "quantity": 1,
+                    "weight_lb": null,
+                    "amount": 1.29
+                },
+                {
+                    "name": "LAYS BBQ CHIPS",
+                    "quantity": 1,
+                    "weight_lb": null,
+                    "amount": 0.5
+                },
+                {
+                    "name": "RUFFLES CHED/S CRM",
+                    "quantity": 1,
+                    "weight_lb": null,
+                    "amount": 0.5
+                },
+                {
+                    "name": "SEASON POTATO WEDG",
+                    "quantity": 1,
+                    "weight_lb": null,
+                    "amount": 3.87
+                },
+                {
+                    "name": "NAVEL ORANGES",
+                    "quantity": 1,
+                    "weight_lb": 0.96,
+                    "amount": 1.62
+                },
+                {
+                    "name": "IBERIA COCONUT WTR",
+                    "quantity": 1,
+                    "weight_lb": null,
+                    "amount": 1.09
+                },
+                {
+                    "name": "SPECIAL ORDER WRAP",
+                    "quantity": 1,
+                    "weight_lb": null,
+                    "amount": 5.19
+                }
+            ],
+            "totals": {
+                "order_total": 14.06,
+                "sales_tax": 0.63,
+                "grand_total": 14.69
+            },
+            "payment": {
+                "method": "Debit"
+            },
+            "rebate_evaluation": {
+                "is_fulfilled": false,
+                "fail_reason": "product not found"
+            }
+        },
+        "campaignId": "69",
+        "rebateCriteria": {
+            "rule": {
+                "type": "group",
+                "children": [
+                    {
+                        "type": "condition",
+                        "field": "order_total",
+                        "amount": {
+                            "value": 14,
+                            "operator": ">="
+                        },
+                        "quantity": null,
+                        "productName": null
+                    },
+                    {
+                        "type": "condition",
+                        "field": "product",
+                        "amount": {
+                            "value": 0.5,
+                            "operator": ">="
+                        },
+                        "quantity": {
+                            "value": 1,
+                            "operator": ">="
+                        },
+                        "productName": "LAYS BBQ CHIPS"
+                    }
+                ],
+                "operator": "AND"
+            },
+            "cashbackAmount": 5
+        },
+        "rebateEvaluation": {
+            "is_fulfilled": false,
+            "fail_reason": "product not found"
+        }
+    },
+    "timestamp": "2026-03-12T12:09:53.686Z"
+}

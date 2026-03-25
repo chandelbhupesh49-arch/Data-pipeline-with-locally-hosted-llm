@@ -106,6 +106,51 @@ export const outputSchema = {
   }
 };
 
+
+
+function isNilish(v) {
+  return v === null || v === undefined || v === '';
+}
+
+function mergeValueObject(preferred, fallback) {
+  if (!preferred || typeof preferred !== 'object') return fallback;
+  if (!fallback || typeof fallback !== 'object') return preferred;
+
+  const out = { ...preferred };
+  for (const key of Object.keys(fallback)) {
+    if (isNilish(out[key])) {
+      out[key] = fallback[key];
+    }
+  }
+  return out;
+}
+
+function repairKnownSchemaAliases(candidate) {
+  const cloned = (candidate && typeof candidate === 'object')
+    ? JSON.parse(JSON.stringify(candidate))
+    : {};
+
+  if (cloned.electrical && typeof cloned.electrical === 'object') {
+    const electrical = cloned.electrical;
+
+    // LLM sometimes writes comparative_tracking_index instead of comparative_tracking_index_cti
+    if (electrical.comparative_tracking_index) {
+      if (!electrical.comparative_tracking_index_cti) {
+        electrical.comparative_tracking_index_cti = electrical.comparative_tracking_index;
+      } else {
+        electrical.comparative_tracking_index_cti = mergeValueObject(
+          electrical.comparative_tracking_index_cti,
+          electrical.comparative_tracking_index
+        );
+      }
+
+      delete electrical.comparative_tracking_index;
+    }
+  }
+
+  return cloned;
+}
+
 /**
  * Helper function to generate JSON schema from template
  * (Reused from transformJson.js logic)
@@ -422,6 +467,10 @@ Property name mappings in tables (by row.Properties):
 - "Melting Point" -> thermal.melting_temperature_10c_per_min
 - "Flame Rating, UL 94" -> thermal.flame_rating_ul_94
 - "Comparative Tracking Index (CTI)" -> electrical.comparative_tracking_index_cti
+- NEVER output electrical.comparative_tracking_index
+- Use ONLY:
+  - electrical.comparative_tracking_index_cti
+  - electrical.comparative_tracking_index_cti_plc
 - "Dielectric Strength" -> electrical.electric_strength
 - "Volume Resistivity" -> electrical.volume_resistivity
 
@@ -513,7 +562,11 @@ Return ONLY one JSON object matching TEMPLATE_JSON exactly.
       }
     }
 
-    const formed = normalizeToTemplate(outputSchema, raw);
+    // const formed = normalizeToTemplate(outputSchema, raw);
+
+    const repairedRaw = repairKnownSchemaAliases(raw);
+    const formed = normalizeToTemplate(outputSchema, repairedRaw);
+
     formed.source = source;
     return formed;
 

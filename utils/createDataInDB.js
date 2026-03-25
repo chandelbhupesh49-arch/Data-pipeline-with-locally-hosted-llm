@@ -37,7 +37,14 @@ export async function createDataInDB(
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            await prisma.data.create({
+            // await prisma.data.create({
+            //     data: {
+            //         id,
+            //         name,
+            //         materialData: unifiedJson,
+            //     },
+            // });
+            await prisma.materials.create({
                 data: {
                     id,
                     name,

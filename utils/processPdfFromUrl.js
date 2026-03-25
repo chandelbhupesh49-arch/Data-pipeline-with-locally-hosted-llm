@@ -221,6 +221,49 @@ function normalizeToTemplate(template, candidate) {
     return null;
 }
 
+function isNilish(v) {
+    return v === null || v === undefined || v === '';
+}
+
+function mergeValueObject(preferred, fallback) {
+    if (!preferred || typeof preferred !== 'object') return fallback;
+    if (!fallback || typeof fallback !== 'object') return preferred;
+
+    const out = { ...preferred };
+    for (const key of Object.keys(fallback)) {
+        if (isNilish(out[key])) {
+            out[key] = fallback[key];
+        }
+    }
+    return out;
+}
+
+function repairKnownSchemaAliases(candidate) {
+    const cloned = (candidate && typeof candidate === 'object')
+        ? JSON.parse(JSON.stringify(candidate))
+        : {};
+
+    if (cloned.electrical && typeof cloned.electrical === 'object') {
+        const electrical = cloned.electrical;
+
+        // LLM sometimes writes comparative_tracking_index instead of comparative_tracking_index_cti
+        if (electrical.comparative_tracking_index) {
+            if (!electrical.comparative_tracking_index_cti) {
+                electrical.comparative_tracking_index_cti = electrical.comparative_tracking_index;
+            } else {
+                electrical.comparative_tracking_index_cti = mergeValueObject(
+                    electrical.comparative_tracking_index_cti,
+                    electrical.comparative_tracking_index
+                );
+            }
+
+            delete electrical.comparative_tracking_index;
+        }
+    }
+
+    return cloned;
+}
+
 
 function schemaFromTemplate(template) {
     if (template === null) {
@@ -769,11 +812,50 @@ GENERAL (explicit field mappings)
 - SECTION=General FIELD=Forms -> general.delivery_form.value
 - SECTION=General FIELD=Generic Symbol -> general.generic_type.value
 
-CERTIFICATIONS (keep only real certifications, not test methods)
-- general.certifications_and_compliance.value may include ONLY:
-  - "UL94 V-0" (or UL94 with rating if present)
-  - "UL Yellow Card" (if any FIELD mentions "UL Yellow Card")
-- DO NOT add ISO/IEC/ASTM/EN/UL 746B/60695/etc into certifications (those are test methods).
+CERTIFICATIONS_AND_COMPLIANCE (STRICT)
+Populate general.certifications_and_compliance.value ONLY with explicit product certifications, regulatory compliances, approvals, or official recognitions.
+
+ALLOWED:
+- Real certification/compliance/approval names only.
+- Example but not limited to : RoHS, REACH, FDA 21 CFR, NSF, UL Yellow Card, UL Recognized, VDE, TÜV, WRAS, ACS, KTW, IECEx, ATEX.
+
+EXCLUDE:
+- Do NOT include any test methods, standards, standard numbers, property standards, flammability test standards, material designations, polymer symbols, or classification standards.
+- Exclude anything like:
+  ISO <number>
+  IEC <number>
+  ASTM <code>
+  EN <number>
+  DIN <...>
+  JIS <...>
+  GB <...>
+  BS <...>
+  SAE <...>
+  MIL <...>
+  UL 94
+  UL 746B
+  UL 746C
+  UL 1581
+  IEC 60695
+  ISO 1043
+- Also exclude values like:
+  "ISO 1043 PA6 FR(30)", "ISO 1133", "ISO 294-4", "ISO 527", "ISO 179", "UL94 V-0"
+
+DECISION RULE:
+- If the text contains only standards/test methods and no real certification/compliance/approval, set:
+  general.certifications_and_compliance.value = null
+
+OUTPUT RULE:
+- Return only the certification/compliance names, comma-separated.
+- Do NOT return filler words such as: passed, complies with, according to, tested by, +, certified acc. to
+- Do NOT copy standard numbers unless they are part of the official certification/compliance name.
+
+EXAMPLES:
+- "RoHS compliant; tested per ISO 527 and ISO 1133" -> "RoHS"
+- "REACH, FDA 21 CFR, ISO 179" -> "REACH, FDA 21 CFR"
+- "UL Yellow Card, ISO 527, IEC 60695" -> "UL Yellow Card"
+- "ISO 1043 PA6 FR(30), ISO 1133, ISO 294-4, ISO 527, ISO 179" -> null
+- "UL94 V-0, ISO 179" -> null
 
 FILLER + FILLER_PERCENT (CRITICAL FIX)
 Goal: general.filler.value must be the MATERIAL (e.g., "Glass Fiber"), NOT "Weight".
@@ -849,6 +931,10 @@ ELECTRICAL
 - PROPERTY contains "Dielectric Strength" -> electrical.electric_strength
 - PROPERTY contains "Comparative Tracking Index" OR "CTI" AND UNIT=V -> electrical.comparative_tracking_index_cti
 - If CTI is PLC (no V), put into electrical.comparative_tracking_index_cti_plc instead.
+ NEVER use electrical.comparative_tracking_index
+- The ONLY valid CTI keys are:
+  - electrical.comparative_tracking_index_cti  (for voltage CTI values like 250 V, 600 V)
+  - electrical.comparative_tracking_index_cti_plc (for PLC class values like 0, 1, 2, 3, 4, 5) and unit -> "class" 
 
 PROCESSING (Injection section)
 - If SECTION=Injection PROPERTY="Drying Temperature" -> processing.drying_temperature_circulating_air_dryer
@@ -1118,7 +1204,9 @@ export async function processPdfFromUrl(pdfUrl, source, materialName) {
 
 
     // 3 schema validation
-    const formedJson = normalizeToTemplate(outputSchema, raw);
+    // const formedJson = normalizeToTemplate(outputSchema, raw);
+    const repairedRaw = repairKnownSchemaAliases(raw);
+    const formedJson = normalizeToTemplate(outputSchema, repairedRaw);
 
     formedJson.source = source;
 

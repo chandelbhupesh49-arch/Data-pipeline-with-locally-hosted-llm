@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,9 +6,15 @@ datasource db {
   provider = "postgresql"
 }
 
-model Data {
-  id           String   @id
-  name         String   
-  materialData Json     @db.JsonB
-  createdAt    DateTime @default(now())
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model Materials {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt             DateTime               @default(now())
+  materialData          Json                   @map("material_data")
+  name                  String
+  materialDataEmbedding Unsupported("vector")? @map("material_data_embedding")
+
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "materials_name_trgm_idx", type: Gin)
+  @@map("materials")
 }
+

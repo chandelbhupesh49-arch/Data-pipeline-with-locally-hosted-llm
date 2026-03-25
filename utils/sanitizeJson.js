@@ -17,6 +17,8 @@
  *   - operators stay string: "> 2E11"
  */
 
+
+
 import { normalizeUnitForConversion, normalizeValueObjectUnits, parseNumericExpression, canonicalizeUnitsByFieldPath, getCanonicalUnit } from "./unitNormalization.js";
 import { outputSchema as OUTPUT_SCHEMA_TEMPLATE } from "./transformJson.js";
 import { decodeHexNullArtifacts } from './decodeHexNullArtifacts.js';
@@ -27,15 +29,125 @@ import { decodeHexNullArtifacts } from './decodeHexNullArtifacts.js';
  *
  * Why: some sources encode "%" in the value string ("3,5 %") or omit unit entirely.
  * We must retain a correct unit for these measurable fields.
+ * 
+ * 
  */
+
+
+//! removed this 
+// const STRICT_PERCENT_ONLY_UNIT_PATHS = new Set([
+//     'physical.humidity_absorption',
+// ]);
+
+// function enforceStrictPercentOnlyValueObject(fieldPath, sanitized, schemaHasUnit) {
+//     if (!schemaHasUnit) return sanitized;
+//     if (!STRICT_PERCENT_ONLY_UNIT_PATHS.has(fieldPath)) return sanitized;
+
+//     const hasValue = !(
+//         sanitized.value === null ||
+//         sanitized.value === '' ||
+//         (typeof sanitized.value === 'string' && sanitized.value.trim() === '')
+//     );
+
+//     // keep null/null as null/null
+//     if (!hasValue) {
+//         return { ...sanitized, value: null, unit: null };
+//     }
+
+//     // humidity_absorption is valid only when unit is exactly "%"
+//     const unit = typeof sanitized.unit === 'string' ? sanitized.unit.trim() : sanitized.unit;
+//     if (unit !== '%') {
+//         return { ...sanitized, value: null, unit: null };
+//     }
+
+//     return sanitized;
+// }
+
+
+// const PERCENT_UNIT_PATHS = new Set([
+//     "general.filler_percent",
+//     "mechanical.strain_at_break",
+//     "rheological.molding_shrinkage_normal",
+//     "rheological.molding_shrinkage_parallel",
+//     // Note: residual_moisture_content_min has no unit field in schema; we cannot add one.
+//     "processing.residual_moisture_content_max",
+// ]);
+
+//! -----------------------till here 
+
+function normalizeConfusablePunctuation(str) {
+    if (typeof str !== "string") return str;
+
+    return str
+        .normalize("NFKC")
+        // dash / minus family -> ASCII hyphen-minus
+        .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
+        // slash-like chars -> ASCII slash
+        .replace(/[\u2215\u2044]/g, "/")
+        // dot / middle-dot family -> canonical middle dot
+        .replace(/[\u2022\u22C5]/g, "·")
+        // degree ring used in OCR -> degree sign
+        .replace(/\u2218/g, "°")
+        // Greek mu / micro sign -> canonical micro sign
+        .replace(/[\u03BC]/g, "µ");
+}
+
+const STRICT_PERCENT_UNIT_RULES = new Map([
+    ['physical.humidity_absorption', '%'],
+
+    ['processing.residual_moisture_content_min', '%'],
+    ['processing.residual_moisture_content_max', '%'],
+
+    ['mechanical.strain_at_break', '%'],
+    ['physical.water_absorption', '%'],
+    ['thermal.oxygen_index', '%'],
+    ['rheological.molding_shrinkage_normal', '%'],
+    ['rheological.molding_shrinkage_parallel', '%'],
+
+    ['mechanical.flexural_strain_at_flexural_strength', '% ISO'],
+]);
+
+function enforceStrictPercentOnlyValueObject(fieldPath, sanitized, schemaHasUnit) {
+    if (!schemaHasUnit) return sanitized;
+
+    const expectedUnit = STRICT_PERCENT_UNIT_RULES.get(fieldPath);
+    if (!expectedUnit) return sanitized;
+
+    const hasValue = !(
+        sanitized.value === null ||
+        sanitized.value === '' ||
+        (typeof sanitized.value === 'string' && sanitized.value.trim() === '')
+    );
+
+    // case 3: unit present but value missing -> null/null
+    if (!hasValue) {
+        return { ...sanitized, value: null, unit: null };
+    }
+
+    const rawUnit = typeof sanitized.unit === 'string' ? sanitized.unit.trim() : null;
+    const normalizedUnit = rawUnit ? normalizeUnitForConversion(rawUnit) : null;
+    const compactUnit = rawUnit ? rawUnit.replace(/\s+/g, '').toUpperCase() : null;
+
+    const isValidUnit =
+        fieldPath === 'mechanical.flexural_strain_at_flexural_strength'
+            ? normalizedUnit === '%' || normalizedUnit === '% ISO' || compactUnit === '%ISO'
+            : normalizedUnit === '%';
+
+    // case 1 + case 2
+    if (!isValidUnit) {
+        return { ...sanitized, value: null, unit: null };
+    }
+
+    // special case: flexural_strain_at_flexural_strength "%" -> "% ISO"
+    return { ...sanitized, unit: expectedUnit };
+}
+
+
 const PERCENT_UNIT_PATHS = new Set([
     "general.filler_percent",
-    "mechanical.strain_at_break",
-    "rheological.molding_shrinkage_normal",
-    "rheological.molding_shrinkage_parallel",
-    // Note: residual_moisture_content_min has no unit field in schema; we cannot add one.
-    "processing.residual_moisture_content_max",
 ]);
+
+
 
 /**
  * Set of field paths that are known to be TEXT fields (should never be numeric-coerced)
@@ -120,6 +232,58 @@ function toCanonicalENotationResistivity(n) {
 }
 
 
+function convertTestConditionSpeedToken(token) {
+    if (!token || typeof token !== "string") return token;
+
+    const m = token.match(/(\d+(?:\.\d+)?)\s*(mm|cm|m|in)\s*\/\s*(min|h|hr|s|sec)\b/i);
+    if (!m) return token;
+
+    const value = Number.parseFloat(m[1]);
+    const lengthUnit = m[2].toLowerCase();
+    const timeUnit = m[3].toLowerCase();
+
+    if (!Number.isFinite(value)) return token;
+
+    let mmValue = value;
+    if (lengthUnit === "cm") mmValue = value * 10;
+    else if (lengthUnit === "m") mmValue = value * 1000;
+    else if (lengthUnit === "in") mmValue = value * 25.4;
+
+    let mmPerMin = mmValue;
+    if (timeUnit === "h" || timeUnit === "hr") mmPerMin = mmValue / 60;
+    else if (timeUnit === "s" || timeUnit === "sec") mmPerMin = mmValue * 60;
+    else if (timeUnit === "min") mmPerMin = mmValue;
+
+    return `${formatConditionNumber(mmPerMin)}mm/min`;
+}
+
+function convertTestConditionTimeToken(token) {
+    if (!token || typeof token !== "string") return token;
+
+    const m = token.match(/(\d+(?:\.\d+)?)\s*(s|sec|secs|second|seconds|min|mins|minute|minutes|h|hr|hrs|hour|hours|day|days)\b/i);
+    if (!m) return token;
+
+    const value = Number.parseFloat(m[1]);
+    const rawUnit = m[2].toLowerCase();
+
+    if (!Number.isFinite(value)) return token;
+
+    let hours = value;
+
+    if (rawUnit === "s" || rawUnit === "sec" || rawUnit === "secs" || rawUnit === "second" || rawUnit === "seconds") {
+        hours = value / 3600;
+    } else if (rawUnit === "min" || rawUnit === "mins" || rawUnit === "minute" || rawUnit === "minutes") {
+        hours = value / 60;
+    } else if (rawUnit === "h" || rawUnit === "hr" || rawUnit === "hrs" || rawUnit === "hour" || rawUnit === "hours") {
+        hours = value;
+    } else if (rawUnit === "day" || rawUnit === "days") {
+        hours = value * 24;
+    }
+
+    return `${formatConditionNumber(hours)}hr`;
+}
+
+
 function formatSelectedFieldsToENotation(node, path = "") {
     if (node === null || node === undefined) return node;
 
@@ -171,27 +335,32 @@ function formatSelectedFieldsToENotation(node, path = "") {
 
 const TEST_METHOD_RX = /\b(ISO|ASTM|IEC|DIN|EN|UL)\s*[A-Z]?\s*\d[\d\-\/]*/i;
 
-// tokens we consider "real" test conditions
+
 const TC_TOKEN_RXS = {
-    temp: /-?\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C)\b/gi,
-    speed: /\d+(?:\.\d+)?\s*mm\s*\/\s*min\b/gi,
-    load: /\d+(?:\.\d+)?\s*kg\b/gi,
+    temp: /-?\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C|°\s*F|deg\s*F)\b/gi,
+
+    speed: /\d+(?:\.\d+)?\s*(?:mm|cm|m|in)\s*\/\s*(?:min|h|hr|s|sec)\b/gi,
+
+    load: /\d+(?:\.\d+)?\s*(?:kg|g|lb|lbs)\b/gi,
+
     pressure: /\d+(?:\.\d+)?\s*(?:MPa|GPa|kPa|bar|psi)\b/gi,
+
+    force: /\d+(?:\.\d+)?\s*(?:N|kN|kgf|lbf|lbf\.?|kgf\.?|lb|lbs)\b/gi,
+
     frequency: /\d+(?:\.\d+)?\s*(?:Hz|kHz|MHz|GHz)\b/gi,
-    heatingRateMin: /\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C)\s*\/\s*min\b/gi,
-    heatingRateH: /\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C)\s*\/\s*h\b/gi,
-    tempRange: /\b-?\d+(?:\.\d+)?\s*(?:to|-|–)\s*-?\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C)\b/gi,
+
+    heatingRateMin: /\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C|°\s*F|deg\s*F)\s*\/\s*min\b/gi,
+    heatingRateH: /\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C|°\s*F|deg\s*F)\s*\/\s*(?:h|hr)\b/gi,
+
+    tempRange: /\b-?\d+(?:\.\d+)?\s*(?:to|-|–)\s*-?\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C|°\s*F|deg\s*F)\b/gi,
+
     dims: /\b\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\b/gi,
-    moldTemp: /\bMT\s*-?\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C)\b/gi,
-    keywords: /\b(?:dry|wet|ambient|RT|room\s*temp(?:erature)?)\b/gi,
+    moldTemp: /\bMT\s*-?\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C|°\s*F|deg\s*F)\b/gi,
     methodLetter: /\bMethod\s*[A-Z]\b/gi,
 
-    //! adding this 
-    thickness: /\b\d+(?:\.\d+)?\s*mm\b/gi,
+    thickness: /\b\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?\s*(?:mm|cm|m|in|inch|inches|mil)\b/gi,
 
-    //! new adding this
-    time: /\b\d+(?:\.\d+)?\s*(?:h|hr|hrs|hour|hours|min|mins|day|days)\b/gi,
-
+    time: /\b\d+(?:\.\d+)?\s*(?:s|sec|secs|second|seconds|min|mins|minute|minutes|h|hr|hrs|hour|hours|day|days)\b/gi,
 };
 
 function canonicalizeDeliveryForm(raw) {
@@ -229,6 +398,7 @@ const TEST_CONDITION_RULES = {
     "electrical.surface_resistivity": ["temp"],
     "electrical.electric_strength": ["temp"],
     "thermal.flame_rating_ul_94": ["thickness"],
+    "thermal.glow_wire_flammability_index_gwfi": ["thickness"],
     "thermal.melting_temperature_10c_per_min": ["heatingRateMin", "heatingRateH"],
 
     "physical.water_absorption": ["temp", "time"],
@@ -236,6 +406,7 @@ const TEST_CONDITION_RULES = {
 
     "thermal.coeff_of_linear_therm_expansion_cte_parallel": ["tempRange"],
     "thermal.coeff_of_linear_therm_expansion_cte_normal": ["tempRange"],
+    "thermal.vicat_softening_temperature": ["force", "heatingRateH"],
 
 };
 
@@ -251,38 +422,400 @@ function normalizeTimeToken(s) {
 }
 
 
+function parseFractionalNumber(raw) {
+    if (!raw || typeof raw !== "string") return null;
+
+    const trimmed = raw.trim();
+
+    if (/^\d+(?:\.\d+)?\/\d+(?:\.\d+)?$/.test(trimmed)) {
+        const [a, b] = trimmed.split("/");
+        const num = Number.parseFloat(a);
+        const den = Number.parseFloat(b);
+        if (Number.isFinite(num) && Number.isFinite(den) && den !== 0) {
+            return num / den;
+        }
+        return null;
+    }
+
+    const parsed = Number.parseFloat(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function convertTestConditionThicknessToken(token) {
+    if (!token || typeof token !== "string") return token;
+
+    const m = token.match(/(\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?)\s*(mm|cm|m|in|inch|inches|mil)\b/i);
+    if (!m) return token;
+
+    const value = parseFractionalNumber(m[1]);
+    const rawUnit = m[2].toLowerCase();
+
+    if (!Number.isFinite(value)) return token;
+
+    let mmValue = value;
+
+    if (rawUnit === "mm") {
+        mmValue = value;
+    } else if (rawUnit === "cm") {
+        mmValue = value * 10;
+    } else if (rawUnit === "m") {
+        mmValue = value * 1000;
+    } else if (rawUnit === "in" || rawUnit === "inch" || rawUnit === "inches") {
+        mmValue = value * 25.4;
+    } else if (rawUnit === "mil") {
+        mmValue = value * 0.0254;
+    }
+
+    return `${formatConditionNumber(mmValue)} mm`;
+}
+
+
+function convertTestConditionForceToken(token) {
+    if (!token || typeof token !== "string") return token;
+
+    const m = token.match(/(\d+(?:\.\d+)?)\s*(N|kN|kgf|lbf|lb|lbs)\b\.?/i);
+    if (!m) return token;
+
+    const value = Number.parseFloat(m[1]);
+    const rawUnit = m[2].toLowerCase();
+
+    if (!Number.isFinite(value)) return token;
+
+    let newtons = value;
+
+    if (rawUnit === "n") {
+        newtons = value;
+    } else if (rawUnit === "kn") {
+        newtons = value * 1000;
+    } else if (rawUnit === "kgf") {
+        newtons = value * 9.80665;
+    } else if (rawUnit === "lbf" || rawUnit === "lb" || rawUnit === "lbs") {
+        newtons = value * 4.4482216152605;
+    }
+
+    return `${formatConditionNumber(newtons)} N`;
+}
+
+
+
+const TEST_CONDITION_FILLER_RX =
+    /\b(?:dry|wet|ambient|rt|room\s*temp(?:erature)?|cond(?:ition(?:ed)?)?|across\s*flow|flow)\b/gi;
+
+function cleanFinalTestConditionValue(raw) {
+    if (raw === null || raw === undefined) return null;
+    if (typeof raw !== "string") return null;
+
+    let t = normalizeUnitsInsideText(raw);
+
+    // Remove known filler words/phrases that should never survive as test_condition
+    t = t.replace(TEST_CONDITION_FILLER_RX, " ");
+
+    // Clean leftover separators/spaces
+    t = t
+        .replace(/\s*[,;/]\s*/g, ", ")
+        .replace(/(?:,\s*){2,}/g, ", ")
+        .replace(/\s+/g, " ")
+        .replace(/\s+,/g, ",")
+        .replace(/^,\s*|\s*,\s*$/g, "")
+        .trim();
+
+    return t || null;
+}
+
+
+function roundConditionValue(num, decimals = 2) {
+    if (!Number.isFinite(num)) return null;
+    const factor = Math.pow(10, decimals);
+    return Math.round(num * factor) / factor;
+}
+
+function formatConditionNumber(num) {
+    if (!Number.isFinite(num)) return null;
+    const rounded = roundConditionValue(num, 1);
+    return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+function convertTestConditionTemperatureToken(token) {
+    if (!token || typeof token !== "string") return token;
+
+    const m = token.match(/(-?\d+(?:\.\d+)?)\s*(°\s*C|deg\s*C|°\s*F|deg\s*F)/i);
+    if (!m) return token;
+
+    const value = Number.parseFloat(m[1]);
+    const rawUnit = m[2].replace(/\s+/g, "").toLowerCase();
+
+    if (!Number.isFinite(value)) return token;
+
+    if (rawUnit === "°c" || rawUnit === "degc") {
+        return `${formatConditionNumber(value)}°C`;
+    }
+
+    if (rawUnit === "°f" || rawUnit === "degf") {
+        const c = (value - 32) * 5 / 9;
+        return `${formatConditionNumber(c)}°C`;
+    }
+
+    return token;
+}
+
+function convertTestConditionLoadToken(token) {
+    if (!token || typeof token !== "string") return token;
+
+    const m = token.match(/(\d+(?:\.\d+)?)\s*(kg|g|lb|lbs)\b/i);
+    if (!m) return token;
+
+    const value = Number.parseFloat(m[1]);
+    const rawUnit = m[2].toLowerCase();
+
+    if (!Number.isFinite(value)) return token;
+
+    if (rawUnit === "kg") {
+        return `${formatConditionNumber(value)}kg`;
+    }
+
+    if (rawUnit === "g") {
+        return `${formatConditionNumber(value / 1000)}kg`;
+    }
+
+    if (rawUnit === "lb" || rawUnit === "lbs") {
+        return `${formatConditionNumber(value * 0.45359237)}kg`;
+    }
+
+    return token;
+}
+
+function convertTestConditionHeatingRateToken(token) {
+    if (!token || typeof token !== "string") return token;
+
+    const m = token.match(/(-?\d+(?:\.\d+)?)\s*(°\s*C|deg\s*C|°\s*F|deg\s*F)\s*\/\s*(min|h|hr)\b/i);
+    if (!m) return token;
+
+    const value = Number.parseFloat(m[1]);
+    const rawUnit = m[2].replace(/\s+/g, "").toLowerCase();
+    const perUnit = m[3].toLowerCase() === "hr" ? "h" : m[3].toLowerCase();
+
+    if (!Number.isFinite(value)) return token;
+
+
+    if (rawUnit === "°c" || rawUnit === "degc") {
+        return `${formatConditionNumber(value)}°C/${perUnit}`;
+    }
+
+    if (rawUnit === "°f" || rawUnit === "degf") {
+        const cRate = value * 5 / 9;
+        return `${formatConditionNumber(cRate)}°C/${perUnit}`;
+    }
+
+    return token;
+}
+
+function canonicalizeTestConditionToken(token, tokenType) {
+    if (!token || typeof token !== "string") return token;
+
+    if (tokenType === "temp") return convertTestConditionTemperatureToken(token);
+
+    if (tokenType === "load") return convertTestConditionLoadToken(token);
+
+    if (tokenType === "speed") return convertTestConditionSpeedToken(token);
+
+    if (tokenType === "time") return convertTestConditionTimeToken(token);
+
+    if (tokenType === "thickness") return convertTestConditionThicknessToken(token);
+
+    if (tokenType === "heatingRateMin" || tokenType === "heatingRateH") {
+        return convertTestConditionHeatingRateToken(token);
+    }
+
+    return normalizeUnitsInsideText(token);
+}
+
 
 function normalizeUnitsInsideText(s) {
     if (!s || typeof s !== "string") return s;
     let t = s;
 
-    // temperature - normalize °C and remove space before it
-    t = t.replace(/(\d+)\s*°\s*C/gi, "$1°C");  // "23 °C" -> "23°C"
+    // temperature
+    t = t.replace(/(\d+(?:\.\d+)?)\s*°\s*C/gi, "$1°C");
+    t = t.replace(/(\d+(?:\.\d+)?)\s*deg\s*C/gi, "$1°C");
     t = t.replace(/°\s*C/gi, "°C");
     t = t.replace(/deg\s*C/gi, "°C");
 
-    // stress/pressure case
+    t = t.replace(/(\d+(?:\.\d+)?)\s*°\s*F/gi, "$1°F");
+    t = t.replace(/(\d+(?:\.\d+)?)\s*deg\s*F/gi, "$1°F");
+    t = t.replace(/°\s*F/gi, "°F");
+    t = t.replace(/deg\s*F/gi, "°F");
+
+    // load
+    t = t.replace(/\blbs\b/gi, "lb");
+    t = t.replace(/\bpounds?\b/gi, "lb");
+    t = t.replace(/\bkilograms?\b/gi, "kg");
+    t = t.replace(/\bgrams?\b/gi, "g");
+
+    // pressure/stress
     t = t.replace(/\bmpa\b/gi, "MPa");
     t = t.replace(/\bgpa\b/gi, "GPa");
     t = t.replace(/\bkpa\b/gi, "kPa");
     t = t.replace(/\bpa\b/g, "Pa");
+    t = t.replace(/\bpsi\b/gi, "psi");
 
-    // spacing in common tokens
+    // speed / rate spacing
     t = t.replace(/mm\s*\/\s*min/gi, "mm/min");
+    t = t.replace(/cm\s*\/\s*min/gi, "cm/min");
+    t = t.replace(/m\s*\/\s*min/gi, "m/min");
+    t = t.replace(/in\s*\/\s*min/gi, "in/min");
+
+    t = t.replace(/mm\s*\/\s*h(r)?/gi, "mm/h");
+    t = t.replace(/cm\s*\/\s*h(r)?/gi, "cm/h");
+    t = t.replace(/m\s*\/\s*h(r)?/gi, "m/h");
+    t = t.replace(/in\s*\/\s*h(r)?/gi, "in/h");
+
+    t = t.replace(/mm\s*\/\s*s(ec)?/gi, "mm/s");
+    t = t.replace(/cm\s*\/\s*s(ec)?/gi, "cm/s");
+    t = t.replace(/m\s*\/\s*s(ec)?/gi, "m/s");
+    t = t.replace(/in\s*\/\s*s(ec)?/gi, "in/s");
+
     t = t.replace(/°C\s*\/\s*min/gi, "°C/min");
     t = t.replace(/°C\s*\/\s*h/gi, "°C/h");
+    t = t.replace(/°F\s*\/\s*min/gi, "°F/min");
+    t = t.replace(/°F\s*\/\s*h/gi, "°F/h");
 
-    // frequency case (leave as written, but normalize spacing)
+    // time spellings
+    t = t.replace(/\b(\d+(?:\.\d+)?)\s*(?:hrs?|hours?)\b/gi, "$1hr");
+    t = t.replace(/\b(\d+(?:\.\d+)?)\s*(?:mins?|minutes?)\b/gi, "$1min");
+    t = t.replace(/\b(\d+(?:\.\d+)?)\s*(?:secs?|seconds?)\b/gi, "$1sec");
+    t = t.replace(/\b(\d+(?:\.\d+)?)\s*days\b/gi, "$1day");
+
+    // viscat 
+    t = t.replace(/°C\s*\/\s*hr/gi, "°C/h");
+    t = t.replace(/°F\s*\/\s*hr/gi, "°F/h");
+
+    t = t.replace(/\bnewtons?\b/gi, "N");
+    t = t.replace(/\bkilonewtons?\b/gi, "kN");
+    t = t.replace(/\bkilogram[-\s]*force\b/gi, "kgf");
+    t = t.replace(/\bpound[-\s]*force\b/gi, "lbf");
+    t = t.replace(/\blbs\b/gi, "lb");
+    t = t.replace(/\bpounds?\b/gi, "lb");
+
     t = t.replace(/\s+/g, " ").trim();
     return t;
 }
+
+// function cleanFinalTestConditionValue(raw) {
+//     if (raw === null || raw === undefined) return null;
+//     if (typeof raw !== "string") return null;
+
+//     let t = normalizeUnitsInsideText(raw);
+
+//     // Remove filler-only words/phrases that should never survive as test_condition
+//     t = t
+//         .replace(/\bacross\s*flow\b/gi, " ")
+//         .replace(/\broom\s*temp(?:erature)?\b/gi, " ")
+//         .replace(/\bcond(?:ition(?:ed)?)?\b/gi, " ")
+//         .replace(/\b(?:dry|wet|ambient|rt|flow)\b/gi, " ");
+
+//     // Cleanup separators/spaces left behind
+//     t = t
+//         .replace(/\s*[,;/]\s*/g, ", ")
+//         .replace(/(?:,\s*){2,}/g, ", ")
+//         .replace(/\s+/g, " ")
+//         .replace(/\s+,/g, ",")
+//         .replace(/^,\s*|\s*,\s*$/g, "")
+//         .trim();
+
+//     return t || null;
+// }
 
 function sanitizeTestCondition(tcRaw, fieldPath, currentTestMethod) {
     if (!tcRaw || typeof tcRaw !== "string") {
         return { test_condition: tcRaw, test_method: currentTestMethod };
     }
 
-    let tc = normalizeUnitsInsideText(tcRaw);
+    // let tc = normalizeUnitsInsideText(tcRaw);
+
+    const tcNormalized = normalizeUnitsInsideText(tcRaw);
+
+    // Keep as-is for these fields
+    if (
+        fieldPath === "rheological.molding_shrinkage_normal" ||
+        fieldPath === "rheological.molding_shrinkage_parallel" ||
+        fieldPath === "thermal.oxygen_index"
+    ) {
+        return {
+            // test_condition: tcNormalized && tcNormalized.trim() ? tcNormalized.trim() : null,
+            test_condition: cleanFinalTestConditionValue(tcNormalized),
+            test_method: currentTestMethod,
+        };
+    }
+
+    //  only "some°C"
+    if (fieldPath === "mechanical.strain_at_break" || fieldPath === "electrical.electric_strength") {
+        const tempMatch = tcNormalized.match(/-?\d+(?:\.\d+)?\s*°C\b/i);
+        const temp = tempMatch
+            ? tempMatch[0].replace(/(\d+(?:\.\d+)?)\s*°C/gi, "$1°C").trim()
+            : null;
+
+        return { test_condition: temp || null, test_method: currentTestMethod };
+    }
+
+    // water_absorption -> exactly "some°C , some hr"
+    if (fieldPath === "physical.water_absorption") {
+        const tempMatch = tcNormalized.match(/-?\d+(?:\.\d+)?\s*(?:°C|°F)\b/i);
+        const timeMatch = tcNormalized.match(/\b\d+(?:\.\d+)?\s*(?:s|sec|secs|second|seconds|min|mins|minute|minutes|h|hr|hrs|hour|hours|day|days)\b/i);
+
+        const temp = tempMatch ? convertTestConditionTemperatureToken(tempMatch[0]) : null;
+        const time = timeMatch ? convertTestConditionTimeToken(timeMatch[0]) : null;
+
+        return {
+            test_condition: temp && time ? `${temp} , ${time}` : null,
+            test_method: currentTestMethod,
+        };
+    }
+
+    // flexural_strain_at_flexural_strength -> exactly "some°C , some mm/min"
+    if (fieldPath === "mechanical.flexural_strain_at_flexural_strength") {
+        const tempMatch = tcNormalized.match(/-?\d+(?:\.\d+)?\s*(?:°C|°F)\b/i);
+        const speedMatch = tcNormalized.match(/\d+(?:\.\d+)?\s*(?:mm|cm|m|in)\s*\/\s*(?:min|h|hr|s|sec)\b/i);
+
+        const temp = tempMatch ? convertTestConditionTemperatureToken(tempMatch[0]) : null;
+        const speed = speedMatch ? convertTestConditionSpeedToken(speedMatch[0]) : null;
+
+        return {
+            test_condition: temp && speed ? `${temp} , ${speed}` : null,
+            test_method: currentTestMethod,
+        };
+    }
+
+    // vicat_softening_temperature -> exactly "some N; some °C/h"
+    if (fieldPath === "thermal.vicat_softening_temperature") {
+        const forceMatch = tcNormalized.match(/\d+(?:\.\d+)?\s*(?:N|kN|kgf|lbf|lb|lbs)\b\.?/i);
+        const heatingRateMatch = tcNormalized.match(/-?\d+(?:\.\d+)?\s*(?:°\s*C|deg\s*C|°\s*F|deg\s*F)\s*\/\s*(?:h|hr)\b/i);
+
+        const force = forceMatch ? convertTestConditionForceToken(forceMatch[0]) : null;
+        const heatingRate = heatingRateMatch ? convertTestConditionHeatingRateToken(heatingRateMatch[0]) : null;
+
+        return {
+            test_condition: force && heatingRate ? `${force}; ${heatingRate}` : null,
+            test_method: currentTestMethod,
+        };
+    }
+
+    if (
+        fieldPath === "thermal.flame_rating_ul_94" ||
+        fieldPath === "thermal.glow_wire_flammability_index_gwfi"
+    ) {
+        const thicknessMatch = tcNormalized.match(/\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?\s*(?:mm|cm|m|in|inch|inches|mil)\b/i);
+
+        const thickness = thicknessMatch
+            ? convertTestConditionThicknessToken(thicknessMatch[0])
+            : null;
+
+        return {
+            test_condition: thickness || null,
+            test_method: currentTestMethod,
+        };
+    }
+
+    let tc = tcNormalized;
 
     // 1) If test_condition contains a method, move it to test_method
     if (TEST_METHOD_RX.test(tc)) {
@@ -298,24 +831,45 @@ function sanitizeTestCondition(tcRaw, fieldPath, currentTestMethod) {
         }
     }
 
+    tc = normalizeUnitsInsideText(tc.replace(TEST_CONDITION_FILLER_RX, " "));
+
     // 2) Extract allowed tokens
     const allowedKeys = TEST_CONDITION_RULES[fieldPath] || Object.keys(TC_TOKEN_RXS); // default: keep known tokens
+    // const found = [];
+
+    // for (const k of allowedKeys) {
+    //     const rx = TC_TOKEN_RXS[k];
+    //     if (!rx) continue;
+    //     const matches = tc.match(rx);
+    //     if (matches) found.push(...matches);
+    // }
+
+    // // Deduplicate + normalize
+    // //! adding this extra
+    // const TIME_RX = /\b\d+(?:\.\d+)?\s*(?:h|hr|hrs|hour|hours|min|mins|day|days)\b/i;
+
+    // // let uniq = Array.from(new Set(found.map(normalizeUnitsInsideText)));
+    // let uniq = Array.from(new Set(found.map(normalizeUnitsInsideText))).map(x => (TIME_RX.test(x) ? normalizeTimeToken(x) : x));
+    // // .map(x => (TC_TOKEN_RXS.time?.test(x) ? normalizeTimeToken(x) : x));
+
     const found = [];
 
     for (const k of allowedKeys) {
         const rx = TC_TOKEN_RXS[k];
         if (!rx) continue;
         const matches = tc.match(rx);
-        if (matches) found.push(...matches);
+        if (matches) {
+            for (const match of matches) {
+                found.push({
+                    key: k,
+                    raw: match,
+                    normalized: canonicalizeTestConditionToken(match, k),
+                });
+            }
+        }
     }
 
-    // Deduplicate + normalize
-    //! adding this extra
-    const TIME_RX = /\b\d+(?:\.\d+)?\s*(?:h|hr|hrs|hour|hours|min|mins|day|days)\b/i;
-
-    // let uniq = Array.from(new Set(found.map(normalizeUnitsInsideText)));
-    let uniq = Array.from(new Set(found.map(normalizeUnitsInsideText))).map(x => (TIME_RX.test(x) ? normalizeTimeToken(x) : x));
-    // .map(x => (TC_TOKEN_RXS.time?.test(x) ? normalizeTimeToken(x) : x));
+    let uniq = Array.from(new Set(found.map(x => x.normalized)));
 
 
 
@@ -331,16 +885,18 @@ function sanitizeTestCondition(tcRaw, fieldPath, currentTestMethod) {
         });
     }
 
+    // ! removed this 
+    // if (fieldPath === "physical.water_absorption") {
+    //     const temp = uniq.find(v => /°C\b/i.test(v)) || null;
+    //     const time = uniq.find(v => /\b\d+(?:\.\d+)?\s*(?:hr|h|min|day)s?\b/i.test(v)) || null;
 
-    if (fieldPath === "physical.water_absorption") {
-        const temp = uniq.find(v => /°C\b/i.test(v)) || null;
-        const time = uniq.find(v => /\b\d+(?:\.\d+)?\s*(?:hr|h|min|day)s?\b/i.test(v)) || null;
+    //     const parts = [temp, time].filter(Boolean);
+    //     const cleaned = parts.length ? parts.join(", ") : null;
 
-        const parts = [temp, time].filter(Boolean);
-        const cleaned = parts.length ? parts.join(", ") : null;
+    //     return { test_condition: cleaned, test_method: currentTestMethod };
+    // }
 
-        return { test_condition: cleaned, test_method: currentTestMethod };
-    }
+    //! -----------------------till here
 
     // Special handling for flexural fields: ensure temp comes before speed, format exactly as "23°C , 2mm/min"
     //! changed this
@@ -369,8 +925,9 @@ function sanitizeTestCondition(tcRaw, fieldPath, currentTestMethod) {
 
     if (
         fieldPath === "mechanical.flexural_modulus" ||
-        fieldPath === "mechanical.flexural_strength" ||
-        fieldPath === "mechanical.flexural_strain_at_flexural_strength"
+        fieldPath === "mechanical.flexural_strength"
+
+        // || fieldPath === "mechanical.flexural_strain_at_flexural_strength"
     ) {
         // Re-detect from the normalized raw string so both tokens are captured
         const tcNorm = normalizeUnitsInsideText(tcRaw);
@@ -394,7 +951,11 @@ function sanitizeTestCondition(tcRaw, fieldPath, currentTestMethod) {
 
         if (temp || speed) {
             const cleaned = [temp, speed].filter(Boolean).join(" , ");
-            return { test_condition: cleaned, test_method: currentTestMethod };
+            // return { test_condition: cleaned, test_method: currentTestMethod };
+            return {
+                test_condition: cleanFinalTestConditionValue(cleaned),
+                test_method: currentTestMethod
+            };
         }
         // If neither found, fall through to generic handling below
     }
@@ -416,7 +977,11 @@ function sanitizeTestCondition(tcRaw, fieldPath, currentTestMethod) {
         else if (/_minus_30c$/.test(fieldPath)) cleaned = "-30°C";
     }
 
-    return { test_condition: cleaned, test_method: currentTestMethod };
+    // return { test_condition: cleaned, test_method: currentTestMethod };
+    return {
+        test_condition: cleanFinalTestConditionValue(cleaned),
+        test_method: currentTestMethod
+    };
 }
 //! till here
 
@@ -674,6 +1239,8 @@ function sanitizeMeasurementishFreeText(str) {
 function normalizeWhitespace(str) {
     if (typeof str !== 'string') return str;
 
+    str = normalizeConfusablePunctuation(str);
+
     // Replace multiple whitespace characters with single space
     return str.replace(/\s+/g, ' ').trim();
 }
@@ -703,6 +1270,8 @@ function normalizeUnit(unit) {
 
     // First normalize whitespace and trim
     let normalized = normalizeWhitespace(unit);
+
+    normalized = normalized.replace(/%\s*ISO/gi, '% ISO');
 
     // Normalize superscript notation first (^3 -> ³, ^2 -> ²)
     normalized = normalized.replace(/\^3/g, '³');
@@ -785,7 +1354,8 @@ function normalizeUnit(unit) {
 function extractUnitFromValue(valueStr) {
     if (typeof valueStr !== 'string') return null;
 
-    const trimmed = valueStr.trim();
+    // const trimmed = valueStr.trim();
+    const trimmed = normalizeWhitespace(valueStr);
 
     // Common unit patterns (percentage, units with letters, etc.)
     // Pattern: number (with optional comma/dot) followed by unit
@@ -803,23 +1373,34 @@ function extractUnitFromValue(valueStr) {
         '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9',
         '⁻': '-', '⁺': '+', '−': '-'  // Also handle minus sign variants
     };
-    
+
     // Normalize superscripts and special characters in the string for matching
     let normalizedForMatch = trimmed;
     for (const [sup, normal] of Object.entries(superscriptMap)) {
         normalizedForMatch = normalizedForMatch.replace(new RegExp(sup.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), normal);
     }
-    
+
     // Match E notation pattern: "0.09E-4/°F" or "0.09E−4/∘F" (keep exponent in unit)
     // Also handle cases like "0.09E−4/∘F" where ∘F might be together
-    const eNotationMatch = normalizedForMatch.match(/^([\d.,\s]+)\s*([Ee]\s*[-−]\s*\d+)\s*\/\s*([K°CF∘]|∘[CF]|°[CF])/i) ||
-                          normalizedForMatch.match(/^([\d.,\s]+)\s*([Ee]\s*[-−]\s*\d+)\s*\/\s*([∘°])\s*([CF])/i);
+
+    // const eNotationMatch = normalizedForMatch.match(/^([\d.,\s]+)\s*([Ee]\s*[-−]\s*\d+)\s*\/\s*([K°CF∘]|∘[CF]|°[CF])/i) ||
+    //     normalizedForMatch.match(/^([\d.,\s]+)\s*([Ee]\s*[-−]\s*\d+)\s*\/\s*([∘°])\s*([CF])/i);
+
+    //!updated 
+    const eNotationMatch =
+        normalizedForMatch.match(
+            /^([\d.,\s]+)\s*([Ee]\s*[-−]\s*\d+)\s*\/\s*(∘[CF]|°[CF]|[Kk]|[∘°])(?:\s*([CF]))?/i
+        ) ||
+        normalizedForMatch.match(
+            /^([\d.,\s]+)\s*([Ee]\s*[-−]\s*\d+)\s*\/\s*([∘°])\s*([CF])/i
+        );
+
     if (eNotationMatch) {
         const numericPart = eNotationMatch[1].trim().replace(/,/g, '.').replace(/\s+/g, '');
         const expPart = eNotationMatch[2].trim().replace(/\s+/g, '').toUpperCase();
         let tempUnit = (eNotationMatch[3] || '').trim();
         const tempUnit2 = (eNotationMatch[4] || '').trim();
-        
+
         // Handle cases where degree symbol and letter are separate
         if (tempUnit === '∘' || tempUnit === '°') {
             if (tempUnit2 === 'C' || tempUnit2 === 'c') {
@@ -845,14 +1426,14 @@ function extractUnitFromValue(valueStr) {
                 tempUnit = tempUnit || 'K';
             }
         }
-        
+
         // Keep value as-is, keep exponent in unit
         return {
             value: numericPart,
             unit: expPart + "/" + tempUnit
         };
     }
-    
+
     // Match x10 or ×10 notation: "90 x10^-6/°C" (keep in unit)
     const x10Match = normalizedForMatch.match(/^([\d.,\s]+)\s*([×x]\s*10\s*\^?\s*[-]?\s*\d+)\s*\/\s*([K°CF∘])/i);
     if (x10Match) {
@@ -860,15 +1441,15 @@ function extractUnitFromValue(valueStr) {
         const expPart = x10Match[2].trim().replace(/\s+/g, '').toLowerCase();
         const tempUnit = x10Match[3].trim();
         const normalizedTempUnit = tempUnit === '∘' || tempUnit === '°' ? '°' : tempUnit;
-        const finalTempUnit = normalizedTempUnit === '°' ? (normalizedForMatch.includes('C') || normalizedForMatch.includes('c') ? '°C' : 
-                                                           normalizedForMatch.includes('F') || normalizedForMatch.includes('f') ? '°F' : normalizedTempUnit) : normalizedTempUnit;
-        
+        const finalTempUnit = normalizedTempUnit === '°' ? (normalizedForMatch.includes('C') || normalizedForMatch.includes('c') ? '°C' :
+            normalizedForMatch.includes('F') || normalizedForMatch.includes('f') ? '°F' : normalizedTempUnit) : normalizedTempUnit;
+
         return {
             value: numericPart,
             unit: expPart + "/" + finalTempUnit
         };
     }
-    
+
     // Match plain 10 notation with superscripts: "0.2 10⁻⁴/K" (keep in unit, but this is less common)
     const plain10Match = normalizedForMatch.match(/^([\d.,\s]+)\s*(10\s*\^?\s*[-]?\s*\d+)\s*\/\s*([K°CF∘])/i);
     if (plain10Match) {
@@ -876,15 +1457,15 @@ function extractUnitFromValue(valueStr) {
         const expPart = plain10Match[2].trim().replace(/\s+/g, '').replace(/10\s*\^?\s*/, 'E');
         const tempUnit = plain10Match[3].trim();
         const normalizedTempUnit = tempUnit === '∘' || tempUnit === '°' ? '°' : tempUnit;
-        const finalTempUnit = normalizedTempUnit === '°' ? (normalizedForMatch.includes('C') || normalizedForMatch.includes('c') ? '°C' : 
-                                                           normalizedForMatch.includes('F') || normalizedForMatch.includes('f') ? '°F' : normalizedTempUnit) : normalizedTempUnit;
-        
+        const finalTempUnit = normalizedTempUnit === '°' ? (normalizedForMatch.includes('C') || normalizedForMatch.includes('c') ? '°C' :
+            normalizedForMatch.includes('F') || normalizedForMatch.includes('f') ? '°F' : normalizedTempUnit) : normalizedTempUnit;
+
         return {
             value: numericPart,
             unit: expPart + "/" + finalTempUnit
         };
     }
-    
+
     // Match percentage at the end of the string:
     // - Scalars: "3,5 %", "3.5%", "3 %"
     // - Ranges:  "0,4 - 0,6 %"
@@ -957,31 +1538,31 @@ function extractUnitFromValue(valueStr) {
  */
 function inferTemperatureUnitFromValue(valueStr) {
     if (typeof valueStr !== 'string') return null;
-    
+
     const lower = valueStr.toLowerCase();
-    
+
     // Check for Fahrenheit indicators
-    if (lower.includes('fahrenheit') || lower.includes('°f') || lower.includes('degf') || 
+    if (lower.includes('fahrenheit') || lower.includes('°f') || lower.includes('degf') ||
         (lower.includes('deg') && lower.includes('f') && !lower.includes('celsius') && !lower.includes('centigrade'))) {
         return '°F';
     }
-    
+
     // Check for Kelvin indicators
     if (lower.includes('kelvin') || (lower.includes('k') && !lower.includes('°c') && !lower.includes('°f'))) {
         return 'K';
     }
-    
+
     // Check for Celsius/Centigrade indicators
-    if (lower.includes('celsius') || lower.includes('centigrade') || lower.includes('°c') || 
+    if (lower.includes('celsius') || lower.includes('centigrade') || lower.includes('°c') ||
         lower.includes('degc') || (lower.includes('deg') && lower.includes('c'))) {
         return '°C';
     }
-    
+
     // Check for degree symbol (°) - default to Celsius if no other indicator
     if (lower.includes('°')) {
         return '°C';
     }
-    
+
     return null;
 }
 
@@ -994,9 +1575,9 @@ function inferTemperatureUnitFromValue(valueStr) {
  */
 function inferCTEUnitFromValue(valueStr) {
     if (typeof valueStr !== 'string') return null;
-    
+
     const lower = valueStr.toLowerCase();
-    
+
     // Check for /K or K^-1
     if (lower.includes('/k') || lower.includes('k^-1') || lower.includes('k⁻¹')) {
         // Check if it's ppm/K or µm/m·K
@@ -1012,7 +1593,7 @@ function inferCTEUnitFromValue(valueStr) {
         }
         return '/K';
     }
-    
+
     // Check for /°C or °C^-1
     if (lower.includes('/°c') || lower.includes('°c^-1') || lower.includes('°c⁻¹')) {
         // Check if it's ppm/°C or µm/m·°C
@@ -1028,7 +1609,7 @@ function inferCTEUnitFromValue(valueStr) {
         }
         return '/°C';
     }
-    
+
     // Check for /°F
     if (lower.includes('/°f') || lower.includes('°f^-1')) {
         if (lower.includes('ppm/°f')) {
@@ -1036,25 +1617,25 @@ function inferCTEUnitFromValue(valueStr) {
         }
         return '/°F';
     }
-    
+
     // Check for ppm (without explicit /K or /°C)
     if (lower.includes('ppm')) {
         // Default to ppm/°C if no other indicator
         return 'ppm/°C';
     }
-    
+
     // Check for µm/m
     if (lower.includes('µm/m') || lower.includes('um/m')) {
         // Default to µm/m·°C if no other indicator
         return 'µm/m·°C';
     }
-    
+
     // Check for x10 or ×10
     if (lower.includes('x10') || lower.includes('×10')) {
         // Default to x10^-6/°C if no other indicator
         return 'x10^-6/°C';
     }
-    
+
     return null;
 }
 
@@ -1090,6 +1671,45 @@ function normalizeExpressionStringToENotation(expr) {
     return toCanonicalENotationString(parsed);
 }
 
+
+const MISSING_PLACEHOLDER_TOKENS = new Set([
+    '',
+    '-',
+    '–',
+    '—',
+    '*',
+    '**',
+    '***',
+    'n/a',
+    'na',
+    'n.a.',
+    'null',
+    'none',
+    'nil',
+    'not available',
+    'not applicable',
+    'no data',
+    'no value',
+    'unknown',
+    'tbd'
+]);
+
+function isMissingPlaceholder(raw) {
+    if (raw === null || raw === undefined) return true;
+    if (typeof raw !== 'string') return false;
+
+    const normalized = normalizeWhitespace(
+        decodeHexNullArtifacts(String(raw))
+    )
+        .replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-') // dash family -> "-"
+        .toLowerCase()
+        .trim();
+
+    return MISSING_PLACEHOLDER_TOKENS.has(normalized);
+}
+
+
+
 function parseValue(rawValue) {
     if (rawValue === null || rawValue === undefined) return null;
     if (typeof rawValue === "number") return rawValue;
@@ -1098,6 +1718,7 @@ function parseValue(rawValue) {
     let s = normalizeWhitespace(rawValue);
     s = stripBracketSuffixArtifacts(s);
     if (!s) return null;
+    if (isMissingPlaceholder(s)) return null;
 
     // Inequality: keep as STRING, but normalize numeric portion if parseable.
     const ineqMatch = s.match(/^(>=|<=|>|<|≥|≤)\s*(.+)$/);
@@ -1163,8 +1784,15 @@ function parseValue(rawValue) {
  * - Never adds a unit key when schema doesn't have one (caller ensures).
  * - If a field is known percent-based and has a non-null value, ensure unit="%".
  */
+// function sanitizeUnit(fieldPath, currentUnit, parsedValue) {
+//     if (currentUnit === null || currentUnit === undefined || currentUnit === "") {
+//         if (PERCENT_UNIT_PATHS.has(fieldPath) && parsedValue !== null) return "%";
+//         return null;
+//     }
+//     return normalizeUnit(String(currentUnit));
+// }
 function sanitizeUnit(fieldPath, currentUnit, parsedValue) {
-    if (currentUnit === null || currentUnit === undefined || currentUnit === "") {
+    if (isMissingPlaceholder(currentUnit)) {
         if (PERCENT_UNIT_PATHS.has(fieldPath) && parsedValue !== null) return "%";
         return null;
     }
@@ -1247,6 +1875,77 @@ function convertStringToNumber(value, fieldPath) {
     return value;
 }
 
+
+
+
+const STRICT_CANONICAL_MEASUREMENT_FIELDS = new Set([
+    "rheological.density_melt",
+    "rheological.specific_heat_capacity_melt",
+    "rheological.thermal_conductivity_melt",
+    "processing.drying_time_circulating_air_dryer_min",
+    "processing.drying_time_circulating_air_dryer_max",
+    "processing.permitted_residence_time_prt_min",
+    "processing.permitted_residence_time_prt_max",
+    "electrical.dissipation_factor_100hz",
+    "electrical.dissipation_factor_1mhz",
+    "electrical.electric_strength",
+    "thermal.burning_rate_thickness_1_mm",
+]);
+
+function hasConvertibleMeasurementValue(value) {
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value !== "string") return false;
+
+    const s = value.trim();
+    if (!s) return false;
+    if (parseNumericExpression(s) !== null) return true;
+
+    const op = s.match(/^(>=|<=|>|<|≥|≤)\s*(.+)$/);
+    if (op) return parseNumericExpression(op[2]) !== null;
+
+    for (const split of [/\s+to\s+/i, /\s+-\s+/, /\s+–\s+/, /\s+—\s+/]) {
+        if (split.test(s)) {
+            const parts = s.split(split);
+            if (parts.length === 2) {
+                return parseNumericExpression(parts[0].trim()) !== null &&
+                    parseNumericExpression(parts[1].trim()) !== null;
+            }
+        }
+    }
+
+    return false;
+}
+
+// function enforceCanonicalUnitValueGuard(fieldPath, sanitized, schemaHasUnit) {
+//     if (!schemaHasUnit) return sanitized;
+//     if (!STRICT_CANONICAL_MEASUREMENT_FIELDS.has(fieldPath)) return sanitized;
+
+//     const canonical = getCanonicalUnit(fieldPath);
+//     const normalizedUnit =
+//         typeof sanitized.unit === "string" ? normalizeUnitForConversion(sanitized.unit) : null;
+
+//     if (canonical && normalizedUnit === canonical && !hasConvertibleMeasurementValue(sanitized.value)) {
+//         return { ...sanitized, value: null, unit: null };
+//     }
+
+//     return sanitized;
+// }
+
+function enforceCanonicalUnitValueGuard(fieldPath, sanitized, schemaHasUnit) {
+    if (!schemaHasUnit) return sanitized;
+    if (!STRICT_CANONICAL_MEASUREMENT_FIELDS.has(fieldPath)) return sanitized;
+
+    const hasUnit =
+        typeof sanitized.unit === "string" && sanitized.unit.trim() !== "";
+
+    if (hasUnit && !hasConvertibleMeasurementValue(sanitized.value)) {
+        return { ...sanitized, value: null, unit: null };
+    }
+
+    return sanitized;
+}
+
+
 /**
  * Sanitizes a value object (e.g., { value: "...", unit: "...", test_condition: "...", test_method: "..." })
  * Applies all parsing fixes to the value field and cleans other fields
@@ -1268,82 +1967,223 @@ function sanitizeValueObject(valueObj, fieldPath, options) {
     const measurementishFreeText = isMeasurementishTextValueField(fieldPath) && !schemaHasUnit;
 
     // parseValue + unit retention (never drop unit)
+    // if ('value' in sanitized) {
+    //     let value = sanitized.value;
+    //     let extractedUnit = null;
+
+    //     if (typeof value === 'string') {
+
+    //         //! adding
+    //         value = decodeHexNullArtifacts(value);
+    //         value = stripBracketSuffixArtifacts(value);
+    //         // Only attempt unit extraction when schema actually has a unit field.
+    //         // This avoids schema mutation for {value: "..."}-only fields.
+    //         if (schemaHasUnit) {
+    //             const unitExtraction = extractUnitFromValue(value);
+    //             if (unitExtraction) {
+    //                 value = unitExtraction.value;
+    //                 if (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "") {
+    //                     extractedUnit = unitExtraction.unit;
+    //                 }
+    //             }
+
+    //             // If unit is still missing and this is a temperature field, try to infer from value string
+    //             if (!extractedUnit && (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "")) {
+    //                 const canonicalUnit = getCanonicalUnit(fieldPath);
+    //                 if (canonicalUnit === "°C") {
+    //                     // This is a temperature field, try to infer unit from raw value
+    //                     const inferredUnit = inferTemperatureUnitFromValue(value);
+    //                     if (inferredUnit) {
+    //                         extractedUnit = inferredUnit;
+    //                     }
+    //                 } else if (canonicalUnit === "1/K") {
+    //                     // This is a CTE field, try to infer unit from raw value
+    //                     const inferredUnit = inferCTEUnitFromValue(value);
+    //                     if (inferredUnit) {
+    //                         extractedUnit = inferredUnit;
+    //                     }
+    //                 }
+    //             }
+    //         }
+
+    //         // Text vs numeric decision:
+    //         // - For non-numeric fields, keep as cleaned string (do NOT numeric-coerce).
+    //         if (measurementishFreeText) {
+    //             // Special case: free-text measurement-ish fields stored as {value: string} (no unit key).
+    //             // We keep as STRING but clean OCR noise + normalize casing/spacing.
+    //             value = sanitizeMeasurementishFreeText(value);
+    //         } else if (fieldPath && !isNumericField(fieldPath)) {
+    //             let cleaned = normalizeWhitespace(removeLeadingTrailingSpecialChars(value));
+    //             // Normalize numeric commas in text (preserves punctuation commas)
+    //             cleaned = normalizeNumericCommasInText(cleaned);
+
+    //             //! added this later
+    //             if (fieldPath === "general.delivery_form") {
+    //                 cleaned = canonicalizeDeliveryForm(cleaned);
+    //             }
+
+    //             value = cleaned;
+    //         }
+
+    //         else {
+    //             // Numeric/measurable: parse deterministically (commas, ranges, inequalities, scientific)
+    //             value = parseValue(value);
+    //         }
+    //     }
+
+    //     sanitized.value = value;
+
+    //     // Retain extracted unit if schema has unit and unit was empty
+    //     if (schemaHasUnit && extractedUnit && (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "")) {
+    //         sanitized.unit = extractedUnit;
+    //     }
+    // }
+
+    //!updated 
+    // if ('value' in sanitized) {
+    //     let value = sanitized.value;
+    //     let extractedUnit = null;
+
+    //     if (typeof value === 'string') {
+
+    //         value = decodeHexNullArtifacts(value);
+    //         value = stripBracketSuffixArtifacts(value);
+    //         // Only attempt unit extraction when schema actually has a unit field.
+    //         // This avoids schema mutation for {value: "..."}-only fields.
+    //         if (schemaHasUnit) {
+    //             const unitExtraction = extractUnitFromValue(value);
+    //             if (unitExtraction) {
+    //                 value = unitExtraction.value;
+    //                 if (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "") {
+    //                     extractedUnit = unitExtraction.unit;
+    //                 }
+    //             }
+
+    //             // If unit is still missing and this is a temperature field, try to infer from value string
+    //             if (!extractedUnit && (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "")) {
+    //                 const canonicalUnit = getCanonicalUnit(fieldPath);
+    //                 if (canonicalUnit === "°C") {
+    //                     // This is a temperature field, try to infer unit from raw value
+    //                     const inferredUnit = inferTemperatureUnitFromValue(value);
+    //                     if (inferredUnit) {
+    //                         extractedUnit = inferredUnit;
+    //                     }
+    //                 } else if (canonicalUnit === "1/K") {
+    //                     // This is a CTE field, try to infer unit from raw value
+    //                     const inferredUnit = inferCTEUnitFromValue(value);
+    //                     if (inferredUnit) {
+    //                         extractedUnit = inferredUnit;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+
+    //!updated further 
     if ('value' in sanitized) {
         let value = sanitized.value;
         let extractedUnit = null;
+        let extractedFromUnitField = false;
 
         if (typeof value === 'string') {
-
-            //! adding
             value = decodeHexNullArtifacts(value);
             value = stripBracketSuffixArtifacts(value);
-            // Only attempt unit extraction when schema actually has a unit field.
-            // This avoids schema mutation for {value: "..."}-only fields.
+        }
+
+        if (isMissingPlaceholder(value)) {
+            value = null;
+        }
+
+        // Recover cases where upstream put "value + unit" into the unit field
+        if (
+            schemaHasUnit &&
+            (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) &&
+            typeof sanitized.unit === 'string'
+        ) {
+            const unitSlotExtraction = extractUnitFromValue(sanitized.unit);
+            if (unitSlotExtraction) {
+                value = unitSlotExtraction.value;
+                extractedUnit = unitSlotExtraction.unit;
+                extractedFromUnitField = true;
+            }
+        }
+
+        if (typeof value === 'string') {
             if (schemaHasUnit) {
                 const unitExtraction = extractUnitFromValue(value);
                 if (unitExtraction) {
                     value = unitExtraction.value;
-                    if (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "") {
+                    if (
+                        sanitized.unit === null ||
+                        sanitized.unit === undefined ||
+                        sanitized.unit === '' ||
+                        extractedFromUnitField
+                    ) {
                         extractedUnit = unitExtraction.unit;
                     }
                 }
-                
-                // If unit is still missing and this is a temperature field, try to infer from value string
-                if (!extractedUnit && (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "")) {
+
+                // infer units for temperature / CTE when unit is still missing
+                if (!extractedUnit && (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === '')) {
                     const canonicalUnit = getCanonicalUnit(fieldPath);
-                    if (canonicalUnit === "°C") {
-                        // This is a temperature field, try to infer unit from raw value
+
+                    if (canonicalUnit === '°C') {
                         const inferredUnit = inferTemperatureUnitFromValue(value);
-                        if (inferredUnit) {
-                            extractedUnit = inferredUnit;
-                        }
-                    } else if (canonicalUnit === "1/K") {
-                        // This is a CTE field, try to infer unit from raw value
+                        if (inferredUnit) extractedUnit = inferredUnit;
+                    } else if (canonicalUnit === 'E-4/K' || canonicalUnit === '1/K') {
                         const inferredUnit = inferCTEUnitFromValue(value);
-                        if (inferredUnit) {
-                            extractedUnit = inferredUnit;
-                        }
+                        if (inferredUnit) extractedUnit = inferredUnit;
                     }
                 }
             }
 
-            // Text vs numeric decision:
-            // - For non-numeric fields, keep as cleaned string (do NOT numeric-coerce).
             if (measurementishFreeText) {
-                // Special case: free-text measurement-ish fields stored as {value: string} (no unit key).
-                // We keep as STRING but clean OCR noise + normalize casing/spacing.
                 value = sanitizeMeasurementishFreeText(value);
             } else if (fieldPath && !isNumericField(fieldPath)) {
                 let cleaned = normalizeWhitespace(removeLeadingTrailingSpecialChars(value));
-                // Normalize numeric commas in text (preserves punctuation commas)
                 cleaned = normalizeNumericCommasInText(cleaned);
 
-                //! added this later
-                if (fieldPath === "general.delivery_form") {
+                if (fieldPath === 'general.delivery_form') {
                     cleaned = canonicalizeDeliveryForm(cleaned);
                 }
 
                 value = cleaned;
-            }
-
-            else {
-                // Numeric/measurable: parse deterministically (commas, ranges, inequalities, scientific)
+            } else {
                 value = parseValue(value);
             }
         }
 
         sanitized.value = value;
 
-        // Retain extracted unit if schema has unit and unit was empty
-        if (schemaHasUnit && extractedUnit && (sanitized.unit === null || sanitized.unit === undefined || sanitized.unit === "")) {
+        if (
+            schemaHasUnit &&
+            extractedUnit &&
+            (
+                sanitized.unit === null ||
+                sanitized.unit === undefined ||
+                sanitized.unit === '' ||
+                extractedFromUnitField
+            )
+        ) {
             sanitized.unit = extractedUnit;
         }
     }
 
     // Enforce null-rule WITHOUT mutating schema:
     // If value is null/empty -> unit must be null (only if schema has unit).
-    if (sanitized.value === null || sanitized.value === '' ||
-        (typeof sanitized.value === 'string' && sanitized.value.trim() === '')) {
+    // if (sanitized.value === null || sanitized.value === '' ||
+    //     (typeof sanitized.value === 'string' && sanitized.value.trim() === '')) {
+    //     sanitized.value = null;
+    //     if (schemaHasUnit) sanitized.unit = null;
+    // }
+
+    if (
+        sanitized.value === null ||
+        sanitized.value === '' ||
+        (typeof sanitized.value === 'string' && sanitized.value.trim() === '') ||
+        isMissingPlaceholder(sanitized.value)
+    ) {
         sanitized.value = null;
         if (schemaHasUnit) sanitized.unit = null;
     }
@@ -1364,6 +2204,12 @@ function sanitizeValueObject(valueObj, fieldPath, options) {
                     ? sanitized[field]                 // don't strip % from unit
                     : removeLeadingTrailingSpecialChars(sanitized[field])
             );
+
+            if (isMissingPlaceholder(fieldValue)) {
+                sanitized[field] = null;
+                return;
+            }
+
 
             // Ensure decimal commas never appear in these text fields (but do not touch punctuation commas).
             fieldValue = normalizeNumericCommasInText(fieldValue);
@@ -1423,6 +2269,9 @@ function sanitizeValueObject(valueObj, fieldPath, options) {
         sanitized.unit = sanitizeUnit(fieldPath, sanitized.unit, sanitized.value);
     }
 
+    sanitized = enforceStrictPercentOnlyValueObject(fieldPath, sanitized, schemaHasUnit);
+    sanitized = enforceCanonicalUnitValueGuard(fieldPath, sanitized, schemaHasUnit);
+
     // Field-specific guardrails (schema-safe):
     // Prevent MFR (mass flow) units from leaking into MVR field.
 
@@ -1444,13 +2293,27 @@ function sanitizeValueObject(valueObj, fieldPath, options) {
     //     }
     // }
 
-    if (schemaHasUnit) {
-        sanitized.unit = sanitizeUnit(fieldPath, sanitized.unit, sanitized.value);
-    }
+    // if (schemaHasUnit) {
+    //     sanitized.unit = sanitizeUnit(fieldPath, sanitized.unit, sanitized.value);
+    // }
 
     //! added this
     const isStrictForThisField =
-        fieldPath === "rheological.melt_volume_flow_rate_mvr" ? false : isStrict;
+        fieldPath === "rheological.density_melt" ||
+            fieldPath === "rheological.specific_heat_capacity_melt" ||
+            fieldPath === "rheological.thermal_conductivity_melt" ||
+            fieldPath === "processing.drying_time_circulating_air_dryer_min" ||
+            fieldPath === "processing.drying_time_circulating_air_dryer_max" ||
+            fieldPath === "processing.permitted_residence_time_prt_min" ||
+            fieldPath === "processing.permitted_residence_time_prt_max" ||
+            fieldPath === "electrical.dissipation_factor_100hz" ||
+            fieldPath === "electrical.dissipation_factor_1mhz" ||
+            fieldPath === "electrical.electric_strength" ||
+            fieldPath === "thermal.burning_rate_thickness_1_mm"
+            ? true
+            : fieldPath === "rheological.melt_volume_flow_rate_mvr"
+                ? false
+                : isStrict;
 
 
     // Canonical unit conversion (schema-safe; never creates extra keys; keeps `value` scalar).

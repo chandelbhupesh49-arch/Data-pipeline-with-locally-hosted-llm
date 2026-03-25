@@ -1,40 +1,3 @@
-// import winston from "winston";
-// import fs from "fs";
-// import path from "path";
-
-// const tsFormat = "ddd YYYY-MM-DD HH:mm:ss";
-
-// const logger = winston.createLogger({
-//     level: "info",
-//     format: winston.format.json(),
-
-//     transports: [
-//         new winston.transports.File({
-//             filename: "Logs/error.logs",
-//             level: "error"
-//         }),
-//         new winston.transports.File({
-//             filename: "Logs/combined.logs",
-//             level: "info"
-//         }),
-//     ]
-// })
-
-// logger.add(
-//     new winston.transports.Console({
-//         format: winston.format.combine(
-//             winston.format.colorize({ all: true }),
-//             winston.format.timestamp({ format: tsFormat }),
-//             winston.format.printf(({ timestamp, level, message }) => {
-//                 return `${timestamp} ${level}: ${message}`;
-//             })
-//         )
-//     })
-// )
-
-// logger.info("hello");
-
-
 import winston from "winston";
 import fs from "node:fs";
 import path from "node:path";
@@ -60,14 +23,25 @@ const baseFormat = winston.format.combine(
     //   winston.format.errors({ stack: true })
 );
 
+
+const droppedOnly = winston.format((info) => {
+    return info.dropped === true ? info : false;
+});
+
 const fileFormat = winston.format.combine(baseFormat, winston.format.json());
+
+const droppedFileFormat = winston.format.combine(
+    droppedOnly(),
+    baseFormat,
+    winston.format.json()
+);
 
 
 // CONSOLE: colored + pretty
 const consoleFormat = winston.format.combine(
     baseFormat,
     // winston.format.colorize({ all: true }),
-    winston.format.colorize(), 
+    winston.format.colorize(),
     winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
         // const rest = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
         return `[${timestamp}] [${level}]: ${message}`;
@@ -86,6 +60,11 @@ const logger = winston.createLogger({
             filename: path.join(LOG_DIR, "combined.log"),
             level: "info",
             format: fileFormat,
+        }),
+        new winston.transports.File({
+            filename: path.join(LOG_DIR, "dropped_feilds.log"),
+            level: "warn",
+            format: droppedFileFormat,
         }),
     ],
 })
