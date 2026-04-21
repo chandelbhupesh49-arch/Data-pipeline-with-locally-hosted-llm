@@ -2,10 +2,17 @@ node_modules
 # Keep environment variables out of version control
 .env
 Logs
-ocr_streams
+ocr_streams/
 per_file_sanitized
-raw_llm_save
+raw_llm_save/
 test.js
 test2.mjs
+vector.mjs
+per_file_sanitized/
+*.zip
+h.mjs
+vector.mjs
+Logs/
+
 
 /generated/prisma
