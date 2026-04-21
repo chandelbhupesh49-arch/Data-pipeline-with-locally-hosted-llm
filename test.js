@@ -1,7 +1,5 @@
-import { logDroppedMeasurementFields } from "./script.js";
+// import { logDroppedMeasurementFields } from "./script.js";
 import { sanitizeUnifiedJson } from "./utils/sanitizeJson.js";
-import fs from "node:fs"
-import path from "path"
 
 const schema = {
     "source": "Celanese Materials Database",
@@ -69,13 +67,13 @@ const schema = {
     },
     "mechanical": {
         "tensile_modulus": {
-            "value": 972000,
-            "unit": "psi",
+            "value": "972000/129",
+            "unit": "mpa",
             "test_condition": null,
             "test_method": "ISO 527-1/-2"
         },
         "stress_at_break": {
-            "value": 14500,
+            "value": "14500/1212",
             "unit": "psi",
             "test_condition": "5mm/min",
             "test_method": "ISO 527-1/-2"
@@ -349,7 +347,7 @@ const schema = {
             "value": null
         },
         "burning_rate_thickness_1_mm": {
-            "value": null,
+            "value": "150/132",
             "unit": null,
             "test_method": null
         },
@@ -374,8 +372,6 @@ const schema = {
 }
 
 const single = sanitizeUnifiedJson(schema);
-fs.appendFileSync(path.join(process.cwd(), "Logs", "dropped_feilds.log"), "\n");
-logDroppedMeasurementFields(schema, single);
 console.log(single);
 
 

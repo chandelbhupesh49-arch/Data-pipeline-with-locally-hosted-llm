@@ -1708,6 +1708,25 @@ function isMissingPlaceholder(raw) {
     return MISSING_PLACEHOLDER_TOKENS.has(normalized);
 }
 
+function parseSlashSeparatedValue(raw) {
+    if (typeof raw !== "string") return null;
+
+    const normalized = normalizeWhitespace(raw);
+    if (!normalized || !normalized.includes("/")) return null;
+
+    const parts = normalized.split("/");
+    if (parts.length !== 2) return null;
+
+    const left = parts[0].trim();
+    const right = parts[1].trim();
+
+    if (isMissingPlaceholder(left)) {
+        return right || null;
+    }
+
+    return left || (right || null);
+}
+
 
 
 function parseValue(rawValue) {
@@ -1730,6 +1749,11 @@ function parseValue(rawValue) {
         if (normalizedSci) return `${operator} ${normalizedSci}`;
         // Fallback: use normalized numeric separators
         return `${operator} ${rhsNorm}`.trim();
+    }
+
+    const slashSide = parseSlashSeparatedValue(s);
+    if (slashSide !== null) {
+        return parseValue(slashSide);
     }
 
     // Range: return NUMBER (max endpoint) when both endpoints are parseable.
@@ -1902,6 +1926,11 @@ function hasConvertibleMeasurementValue(value) {
 
     const op = s.match(/^(>=|<=|>|<|≥|≤)\s*(.+)$/);
     if (op) return parseNumericExpression(op[2]) !== null;
+
+    const slashSide = parseSlashSeparatedValue(s);
+    if (slashSide !== null) {
+        return hasConvertibleMeasurementValue(slashSide);
+    }
 
     for (const split of [/\s+to\s+/i, /\s+-\s+/, /\s+–\s+/, /\s+—\s+/]) {
         if (split.test(s)) {
