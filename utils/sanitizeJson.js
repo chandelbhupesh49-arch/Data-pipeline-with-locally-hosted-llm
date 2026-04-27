@@ -3345,6 +3345,7 @@ export function sanitizeGenericAndClassifyPolymer(record) {
     // Extract current values
     let genericType = record.general.generic_type.value;
     let polymerType = record.general.polymer_type.value;
+    const chemicalFamily = record.general.chemical_family?.value;
 
 
 
@@ -3372,6 +3373,13 @@ export function sanitizeGenericAndClassifyPolymer(record) {
     let isGenericValid = !isGenericGarbage && normalizedGeneric && genericHasValidPrefix;
     const isPolymerValid = !isPolymerGarbage && normalizedPolymer && polymerHasValidPrefix;
 
+    function recoverGenericTypeFromChemicalFamily(value) {
+        if (isGarbageValue(value)) return null;
+        const extracted = extractMaterialCode(value);
+        if (!extracted || isGarbageValue(extracted)) return null;
+        return extracted;
+    }
+
     // Case 1: If genericType is valid → keep it (preserve original value including grades)
     if (isGenericValid) {
         // Extract material code if it's in parentheses or full name (e.g., "Polyethylene (PE)" -> "PE")
@@ -3398,12 +3406,22 @@ export function sanitizeGenericAndClassifyPolymer(record) {
             isGenericValid = true;
         }
     }
-    // Case 3: If both missing → keep both null
-    else if (!isGenericValid && !isPolymerValid) {
+    // Case 3: If genericType/polymerType recovery failed, try confident recovery from chemicalFamily
+    else if (!isGenericValid) {
+        const recoveredFromChemical = recoverGenericTypeFromChemicalFamily(chemicalFamily);
+        if (recoveredFromChemical) {
+            genericType = recoveredFromChemical;
+            normalizedGeneric = normalizeMaterialString(recoveredFromChemical);
+            isGenericGarbage = false;
+            isGenericValid = true;
+        }
+    }
+    // Case 4: If both missing → keep both null
+    if (!isGenericValid && !isPolymerValid) {
         genericType = null;
         polymerType = null;
     }
-    // Case 4: If genericType is garbage → drop it → re-apply case 3/2
+    // Case 5: If genericType is garbage → drop it → re-apply case 3/2
     else if (isGenericGarbage) {
         genericType = null;
         normalizedGeneric = null;
@@ -3428,7 +3446,7 @@ export function sanitizeGenericAndClassifyPolymer(record) {
             polymerType = null;
         }
     }
-    // Case 5: If polymerType is garbage AND genericType missing → drop it → case 3
+    // Case 6: If polymerType is garbage AND genericType missing → drop it → case 4
     else if (isPolymerGarbage && !isGenericValid) {
         polymerType = null;
         genericType = null;

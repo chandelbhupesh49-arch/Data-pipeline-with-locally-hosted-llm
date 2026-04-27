@@ -1,5 +1,5 @@
 // import { logDroppedMeasurementFields } from "./script.js";
-import { sanitizeUnifiedJson } from "./utils/sanitizeJson.js";
+import { sanitizeGenericAndClassifyPolymer, sanitizeUnifiedJson } from "./utils/sanitizeJson.js";
 
 const schema = {
     "source": "Celanese Materials Database",
@@ -20,10 +20,10 @@ const schema = {
             "value": null
         },
         "chemical_family": {
-            "value": "polybutylene terephthalate"
+            "value": ""
         },
         "polymer_type": {
-            "value": "PBT"
+            "value": ""
         },
         "generic_type": {
             "value": null
@@ -371,7 +371,8 @@ const schema = {
     }
 }
 
-const single = sanitizeUnifiedJson(schema);
+let single = sanitizeUnifiedJson(schema);
+single =  sanitizeGenericAndClassifyPolymer(single);
 console.log(single);
 
 
