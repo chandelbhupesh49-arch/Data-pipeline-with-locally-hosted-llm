@@ -13,6 +13,7 @@ import { finalSchemaTransformation } from "./utils/finalSchema.js";
 import logger from "./utils/logger/logger.js";
 import fs from "node:fs"
 import path from "path"
+import { addActualValueToJson } from "./test.js";
 
 function setFolderName(obj, folderName) {
     if (!obj || typeof obj !== "object") return obj;
@@ -416,7 +417,9 @@ async function makeEntryForThisFolder(folderName, filenames, formedJsons) {
         logger.info(`\nSaved unified final JSON -> ${finalPath} \n`);
     }
 
-    const flag = await createDataInDB(finalJson, folderName, folderName);
+    const actualFinalJson = addActualValueToJson(finalJson);
+
+    const flag = await createDataInDB(actualFinalJson, folderName, folderName);
 
 
     if (flag) {

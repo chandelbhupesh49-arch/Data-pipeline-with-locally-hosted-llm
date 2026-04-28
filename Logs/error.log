@@ -1,6 +1,0 @@
-{"level":"error","message":"Error processing PDF from URL http://localhost:3000/data/ULTRAMID A3EG7/ULTRAMID A3EG7 - Campusplastics.pdf in DEEPSEEK-OCR-2 BLOCK: fetch failed","timestamp":"Mon 2026-03-30 17:36:20"}
-{"level":"error","message":"Failed to process PDF http://localhost:3000/data/ULTRAMID A3EG7/ULTRAMID A3EG7 - Campusplastics.pdf: fetch failed","timestamp":"Mon 2026-03-30 17:36:20"}
-{"level":"error","message":"Error processing PDF from URL http://localhost:3000/data/ULTRAMID A3HG5/ULTRAMID A3HG5 - Campusplastics.pdf in DEEPSEEK-OCR-2 BLOCK: fetch failed","timestamp":"Tue 2026-04-21 15:24:20"}
-{"level":"error","message":"Failed to process PDF http://localhost:3000/data/ULTRAMID A3HG5/ULTRAMID A3HG5 - Campusplastics.pdf: fetch failed","timestamp":"Tue 2026-04-21 15:24:20"}
-{"level":"error","message":"Error processing PDF from URL http://localhost:3000/data/ULTRAMID A3HG5/ULTRAMID A3HG5 - Supplier.pdf in DEEPSEEK-OCR-2 BLOCK: fetch failed","timestamp":"Tue 2026-04-21 15:24:20"}
-{"level":"error","message":"Failed to process PDF http://localhost:3000/data/ULTRAMID A3HG5/ULTRAMID A3HG5 - Supplier.pdf: fetch failed","timestamp":"Tue 2026-04-21 15:24:20"}
