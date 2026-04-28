@@ -13,7 +13,7 @@ import { finalSchemaTransformation } from "./utils/finalSchema.js";
 import logger from "./utils/logger/logger.js";
 import fs from "node:fs"
 import path from "path"
-import { addActualValueToJson } from "./test.js";
+import { addActualValueToJson } from "./utils/addActualValueToJson.js";
 
 function setFolderName(obj, folderName) {
     if (!obj || typeof obj !== "object") return obj;
